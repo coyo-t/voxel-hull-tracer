@@ -220,7 +220,9 @@ function RayRectContext () constructor begin
 		normal_y = axis == Vec3.y ? -sign_y : 0
 		normal_z = axis == Vec3.z ? -sign_z : 0
 
-		did_hit = far_time > near_time
+		//did_hit = far_time > near_time
+		//did_hit = 1 > near_time and far_time > 0
+		did_hit = far_time > near_time and 1 > near_time and far_time > 0
 		
 		if did_hit
 		{

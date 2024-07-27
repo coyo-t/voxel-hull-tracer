@@ -5,6 +5,7 @@ global.__HIT_TIME = 1
 global.__HIT_DISTANCE = 0
 global.__HIT_NORMALIZED = [0,0,0]
 global.__HIT_IS_DOWN_CHECK = false
+global.__TRACE_NEAREST = 0
 function MapData (_xsize, _ysize, _zsize) constructor begin
 	
 	xsize = floor(_xsize)
@@ -51,6 +52,7 @@ function MapData (_xsize, _ysize, _zsize) constructor begin
 		return false
 	}
 	
+	global.__TRACE_HULL_STAGE = 0
 	static trace_hull = function (
 		_x0, _y0, _z0,
 		_x1, _y1, _z1,
@@ -58,28 +60,299 @@ function MapData (_xsize, _ysize, _zsize) constructor begin
 		_predicate = undefined
 	)
 	{
+		static vec = function (_x=0,_y=0,_z=0) { return [_x,_y,_z] }
+		static calciter = function (_x, _y, _z, _xd, _yd, _zd) {
+			return (
+				abs(floor(_x+_xd)-floor(_x))+
+				abs(floor(_y+_yd)-floor(_y))+
+				abs(floor(_z+_zd)-floor(_z))
+			)
+		}
+		
+		global.__TRACE_HULL_STAGE = 0
+		var time_max = (_xd*_xd)+(_yd*_yd)+(_zd*_zd)
+		
+		if time_max <= 0
+		{
+			return false
+		}
+		
 		_predicate ??= function (_x, _y, _z) { return true }
 		
-		var box_direction = [_xd, _yd, _zd]
+		var box_direction = vec(_xd, _yd, _zd)
+		
+		var box_min = vec(_x0, _y0, _z0)
+		var box_max = vec(_x1, _y1, _z1)
 		
 		var eps = math_get_epsilon()
 		var ep2 = 1 - eps
-		var bx0 = floor(_x0 + eps)
-		var by0 = floor(_y0 + eps)
-		var bz0 = floor(_z0 + eps)
-		var bx1 = floor(_x1 + ep2)
-		var by1 = floor(_y1 + ep2)
-		var bz1 = floor(_z1 + ep2)
+		var bx0 = floor(box_min[0] + eps)
+		var by0 = floor(box_min[1] + eps)
+		var bz0 = floor(box_min[2] + eps)
+		var bx1 = floor(box_max[0] + ep2)
+		var by1 = floor(box_max[1] + ep2)
+		var bz1 = floor(box_max[2] + ep2)
+		
+		var did = false
+		
+		// check the hull area. not elegant but it works :/
+		begin
+			var xx, yy, zz
+			
+			for (zz = bz0; zz < bz1; zz++)
+			{
+				for (yy = by0; yy < by1; yy++)
+				{
+					for (xx = bx0; xx < bx1; xx++)
+					{
+						did |= _predicate(xx, yy, zz)
+					}
+				}
+			}
+			
+		end
+		
+		var trailing_corner = vec()
+		var leading_corner = vec()
+		
+		var trailing_cel = vec()
+		var leading_cel = vec()
+		
+		var step = vec()
+		var time_delta = vec()
+		
+		var time_next = vec()
+		var normalized = vec()
+		
+		time_max = sqrt(time_max)
+		var inverse_time_max = 1.0 / time_max
+		
+		for (var i = 0; i < Vec3.sizeof; i++)
+		{
+			var rd = box_direction[i]
+			var dir_positive = rd >= 0
+			step[i] = dir_positive ? +1 : -1
+		
+			leading_corner[i]  = dir_positive ? box_max[i] : box_min[i]
+			trailing_corner[i] = dir_positive ? box_min[i] : box_max[i]
+		
+			var jit = step[i] * eps
+		
+			leading_cel[i]  = floor(leading_corner[i]  - jit)
+			trailing_cel[i] = floor(trailing_corner[i] + jit)
+		
+			time_delta[i] = rd == 0 ? infinity : abs(1.0 / rd)
+		
+			time_next[i] = dir_positive
+				? (leading_cel[i] + 1 - leading_corner[i])
+				: (leading_corner[i] - leading_cel[i])
+			time_next[i] *= time_delta[i]
+		
+			normalized[i] = rd * inverse_time_max
+		}
+		
+		var stepx = step[Vec3.x]
+		var stepy = step[Vec3.y]
+		var stepz = step[Vec3.z]
+	
+		var leading_total  = vec(
+			stepx > 0 ? bx1 : bx0,
+			stepy > 0 ? by1 : by0,
+			stepz > 0 ? bz1 : bz0
+		)
+		var trailing_total = vec(
+			stepx > 0 ? bx0 : bx1,
+			stepy > 0 ? by0 : by1,
+			stepz > 0 ? bz0 : bz1
+		)
+		
+		var trailing_start = vec(trailing_corner[0],trailing_corner[1],trailing_corner[2])
+		var leading_start = vec(leading_corner[0],leading_corner[1],leading_corner[2])
+		
+		var axis = Vec3.sizeof
+		
+		var maxiter = calciter(
+			leading_corner[0]-eps*stepx,
+			leading_corner[1]-eps*stepy,
+			leading_corner[2]-eps*stepz,
+			box_direction[0],
+			box_direction[1],
+			box_direction[2]
+		)
+		
+		var time = 0
+		
+		var ddid = did
+		var xx, yy, zz
+		// "Search" bounds
+		var sx0, sy0, sz0
+		var sx1, sy1, sz1
+		
+		static lesser_axis = function (_time_next)
+		{
+			return (_time_next[Vec3.x] < _time_next[Vec3.y])
+				? (_time_next[Vec3.z] < _time_next[Vec3.x] ? Vec3.z : Vec3.x)
+				: (_time_next[Vec3.z] < _time_next[Vec3.y] ? Vec3.z : Vec3.y)
+		}
+		
+		while (--maxiter) >= 0
+		{
+			axis = lesser_axis(time_next)
+		
+			begin
+				time = time_next[axis]
+
+				leading_cel[axis] += step[axis]
+				time_next[axis] += time_delta[axis]
+		
+				for (var i = 0; i < Vec3.sizeof; i++)
+				{
+					var nf = normalized[i] * time * time_max
+					leading_corner[i] = leading_start[i] + nf
+					trailing_corner[i] = trailing_start[i] + nf
+					trailing_cel[i] = floor(trailing_corner[i] + step[i] * eps)
+				}
+			end
+		
+			if ddid
+			{
+				break
+			}
+		
+			sx0 = (axis == Vec3.x) ? leading_cel[Vec3.x] : trailing_cel[Vec3.x]
+			sx1 = leading_cel[Vec3.x] + stepx
+
+			sy0 = (axis == Vec3.y) ? leading_cel[Vec3.y] : trailing_cel[Vec3.y]
+			sy1 = leading_cel[Vec3.y] + stepy
+
+			sz0 = (axis == Vec3.z) ? leading_cel[Vec3.z] : trailing_cel[Vec3.z]
+			sz1 = leading_cel[Vec3.z] + stepz
+			
+			leading_total[axis] += step[axis]
+			
+			var xcount = abs(sx1-sx0)
+			var ycount = abs(sy1-sy0)
+			var zcount = abs(sz1-sz0)
+			
+			var yc, zc
+			for (xx = sx0; --xcount >= 0; xx+=stepx)
+			{
+				yc = ycount
+				for (yy = sy0; --yc >= 0; yy+=stepy)
+				{
+					zc = zcount
+					for (zz = sz0; --zc >= 0; zz+=stepz)
+					{
+						ddid |= _predicate(xx, yy, zz)
+					}
+				}
+			}
+		
+			did |= ddid
+			if ddid then break
+		}
+	
+		if did
+		{
+			global.__TRACE_HULL_STAGE = 1
+			// fixme: icky hack!!!
+			var nearest = global.__TRACE_NEAREST
+			var tmp
+		
+			var cur_lx0 = trailing_corner[0]
+			var cur_ly0 = trailing_corner[1]
+			var cur_lz0 = trailing_corner[2]
+			var cur_lx1 = leading_corner[0]
+			var cur_ly1 = leading_corner[1]
+			var cur_lz1 = leading_corner[2]
+		
+			tmp = cur_lx0
+			cur_lx0 = min(tmp, cur_lx1)
+			cur_lx1 = max(tmp, cur_lx1)
+			tmp = cur_ly0
+			cur_ly0 = min(tmp, cur_ly1)
+			cur_ly1 = max(tmp, cur_ly1)
+			tmp = cur_lz0
+			cur_lz0 = min(tmp, cur_lz1)
+			cur_lz1 = max(tmp, cur_lz1)
 		
 		
+			while (--maxiter) >= 0
+			{
+				var land_x = box_direction[Vec3.x] * nearest
+				var land_y = box_direction[Vec3.y] * nearest
+				var land_z = box_direction[Vec3.z] * nearest
 		
+				var lsx0 = trailing_start[0] + land_x
+				var lsy0 = trailing_start[1] + land_y
+				var lsz0 = trailing_start[2] + land_z
+				var lsx1 = leading_start[0] + land_x
+				var lsy1 = leading_start[1] + land_y
+				var lsz1 = leading_start[2] + land_z
 		
-		var trailing_corner = [0,0,0]
-		var leading_corner = [0,0,0]
+				tmp = lsx0
+				lsx0 = min(tmp, lsx1)
+				lsx1 = max(tmp, lsx1)
+				tmp = lsy0
+				lsy0 = min(tmp, lsy1)
+				lsy1 = max(tmp, lsy1)
+				tmp = lsz0
+				lsz0 = min(tmp, lsz1)
+				lsz1 = max(tmp, lsz1)
+			
+				lsx0 = min(lsx0, cur_lx0)
+				lsy0 = min(lsy0, cur_ly0)
+				lsz0 = min(lsz0, cur_lz0)
+				lsx1 = max(lsx1, cur_lx1)
+				lsy1 = max(lsy1, cur_ly1)
+				lsz1 = max(lsz1, cur_lz1)
+			
+				lsx0 = floor(lsx0+eps)
+				lsy0 = floor(lsy0+eps)
+				lsz0 = floor(lsz0+eps)
+				lsx1 = floor(lsx1+1-eps)
+				lsy1 = floor(lsy1+1-eps)
+				lsz1 = floor(lsz1+1-eps)
 		
-		var trailing_cel = [0,0,0]
-		var leading_cel = [0,0,0]
-		
+				var ignore_x0 = min(trailing_total[0], leading_total[0])
+				var ignore_y0 = min(trailing_total[1], leading_total[1])
+				var ignore_z0 = min(trailing_total[2], leading_total[2])
+				var ignore_x1 = max(leading_total[0], trailing_total[0])
+				var ignore_y1 = max(leading_total[1], trailing_total[1])
+				var ignore_z1 = max(leading_total[2], trailing_total[2])
+			
+				var xcount = abs(lsx1-lsx0)
+				var ycount = abs(lsy1-lsy0)
+				var zcount = abs(lsz1-lsz0)
+				
+				var yc, zc
+				for (xx = lsx0; --xcount >= 0; xx++)
+				{
+					var ignx = ignore_x0 <= xx and xx < ignore_x1
+					yc = ycount
+					for (yy = lsy0; --yc >= 0; yy++)
+					{
+						var igny = ignore_y0 <= yy and yy < ignore_y1
+						zc = zcount
+						for (zz = lsz0; --zc >= 0; zz++)
+						{
+							if ignx and igny and ignore_z0 <= zz and zz < ignore_z1
+							{
+								continue
+							}
+							ddid |= _predicate(xx, yy, zz)
+						}
+					}
+				}
+				if global.__TRACE_NEAREST >= nearest
+				{
+					break
+				}
+				nearest = global.__TRACE_NEAREST
+			}
+		}
+	
+		return did
 	}
 	static trace_line = function (_start_x, _start_y, _start_z, _end_x, _end_y, _end_z, _predicate=undefined)
 	{

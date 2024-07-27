@@ -61,6 +61,7 @@
     {"id":{"name":"spr_crosshair","path":"sprites/spr_crosshair/spr_crosshair.yy",},},
     {"id":{"name":"spr_dark_hull","path":"sprites/spr_dark_hull/spr_dark_hull.yy",},},
     {"id":{"name":"spr_direction_debug","path":"sprites/spr_direction_debug/spr_direction_debug.yy",},},
+    {"id":{"name":"spr_dirt_2","path":"sprites/spr_dirt_2/spr_dirt_2.yy",},},
     {"id":{"name":"spr_dirt","path":"sprites/spr_dirt/spr_dirt.yy",},},
     {"id":{"name":"spr_glass","path":"sprites/spr_glass/spr_glass.yy",},},
     {"id":{"name":"spr_grass_top","path":"sprites/spr_grass_top/spr_grass_top.yy",},},

@@ -83,6 +83,26 @@ glass = GlassBlock {
 }
 
 do
+	local sh = { 0.25, 0.25, 0.25, 0.75, 0.75, 0.75 }
+	core = Block {
+		render_shapes = {sh},
+		collision_shapes = {sh},
+		sprite = 'spr_dirt_2',
+		opaque = false,
+	}
+end
+
+do
+	local sh = { 0, 0, 0.5, 1, 1, 1 }
+	upper_slab = Block {
+		render_shapes = {sh},
+		collision_shapes ={sh},
+		sprite = 'spr_grey_hull',
+		opaque = false,
+	}
+end
+
+do
 	local sh = {0,0,0,1,1,texel}
 	carpet = Block {
 		render_shapes = {sh},
@@ -93,7 +113,6 @@ do
 end
 
 do
-
 	local outs = {}
 	for i = 1, 16 do
 		local j = i - 1

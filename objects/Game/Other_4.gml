@@ -29,3 +29,4 @@ array_sort(regions, false)
 cursor_3d_x = map.xsize / 2
 cursor_3d_y = map.ysize / 2
 cursor_3d_z = map.zsize / 2
+

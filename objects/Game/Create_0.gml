@@ -20,6 +20,8 @@ palette = new Palette(
 	"glass",
 	"carpet",
 	"super_ramp",
+	"core",
+	"upper_slab",
 )
 
 map = new MapData(16, 16, 8)
@@ -127,7 +129,8 @@ function invalidate_surface ()
 }
 
 view3d_show_hit_hull = false
-view3d_show_votv_cursor = false
+view3d_show_votv_cursor = true
+views_show_camera_trace = false
 
 mouse = begin
 	x: 0,
@@ -326,6 +329,10 @@ function draw_2d_bkd (_region)
 
 var BASE_ZOOM_2D = 20
 
+cam_spd_x = 0
+cam_spd_y = 0
+cam_spd_z = 0
+
 with add_region("3d Viewport", new Region(0, 0))
 {
 	other.region_3d = self
@@ -501,6 +508,10 @@ with add_region("3d Viewport", new Region(0, 0))
 			)
 		}
 		
+		var dt = delta_time / 1000000
+		var cacc_x = 0
+		var cacc_y = 0
+		var cacc_z = 0
 		if region_has_focus(_region) and _region.action <> "TYPING"
 		{
 			var mdelta = mouse_wheel_down() - mouse_wheel_up()
@@ -521,17 +532,32 @@ with add_region("3d Viewport", new Region(0, 0))
 				nsinp *= s
 			}
 			
-			var dt = delta_time / 1000000
-			var spd = dt * 10
-
+			var hspd = 80
+			var vspd = 100
+			
 			var si = c.flat_forward_x
 			var ci = c.flat_forward_y
 
-			c.x += (ewinp * ci + nsinp * si) * spd
-			c.y += (nsinp * ci - ewinp * si) * spd
-			c.z += udinp * spd
-			
+			cacc_x = (ewinp * ci + nsinp * si) * hspd
+			cacc_y += (nsinp * ci - ewinp * si) * hspd
+			cacc_z += udinp * vspd
+
 		}
+		
+		// verlet
+		begin
+			var pdt = dt * dt * 0.5
+			c.x += cam_spd_x * dt + cacc_x * pdt
+			c.y += cam_spd_y * dt + cacc_y * pdt
+			c.z += cam_spd_z * dt + cacc_z * pdt
+			
+			var hdecel = 0.91
+			var vdecel = 0.85
+			cam_spd_x = cam_spd_x + (cacc_x * dt) - (cam_spd_x * (1-hdecel))
+			cam_spd_y = cam_spd_y + (cacc_y * dt) - (cam_spd_y * (1-hdecel))
+			cam_spd_z = cam_spd_z + (cacc_z * dt) - (cam_spd_z * (1-vdecel))
+			
+		end
 		
 		
 		var reach = 10//5
@@ -671,7 +697,7 @@ with add_region("3d Viewport", new Region(0, 0))
 			}
 			
 		}
-	
+		
 	end)
 
 	render_callback = method(other, function (_region) begin
@@ -731,9 +757,47 @@ with add_region("3d Viewport", new Region(0, 0))
 		map_renderer.draw()
 		map_renderer.draw_world_axis()
 
+		begin // trace hull
+			if region_has_focus(_region)
+			{
+				if keyboard_check_pressed(ord("1"))
+				{
+					trace_hull_x = c.x
+					trace_hull_y = c.y
+					trace_hull_z = c.z
+				}
+				if keyboard_check_pressed(ord("2"))
+				{
+					trace_hull_xd = trace_x1-trace_x0
+					trace_hull_yd = trace_y1-trace_y0
+					trace_hull_zd = trace_z1-trace_z0
+				}
+			}
+		
+			global.__TRACE_NEAREST = infinity
+			trace_hull_did_hit = false
+			trace_hull_hit_time = infinity
+			ds_list_clear(trace_hull_boxes)
+		
+			trace_update_hull()
+		
+			trace_context.setup_with_corners(
+				trace_hull.x0, trace_hull.y0, trace_hull.z0,
+				trace_hull.x1, trace_hull.y1, trace_hull.z1,
+				trace_hull_xd, trace_hull_yd, trace_hull_zd
+			)
+		
+			map.trace_hull(
+				trace_hull.x0, trace_hull.y0, trace_hull.z0-1,
+				trace_hull.x1, trace_hull.y1, trace_hull.z1,
+				trace_hull_xd, trace_hull_yd, trace_hull_zd,
+				trace_predicate_hull
+			)
+		end
+
 		var votv_ovrride = trace_hit and _region.action <> "TYPING" and keyboard_check(ord("Q")) and region_has_focus(_region)
 
-		if trace_pinned
+		if trace_pinned and views_show_camera_trace
 		{
 			draw_primitive_begin(pr_linelist)
 			draw_set_color(c_yellow)
@@ -1077,6 +1141,21 @@ with add_region("2d Viewport (XY)", new Region(1, 1))
 	other.region_2d_xy = self
 	type = REGION_TYPE_2D
 	set_zoom(BASE_ZOOM_2D)
+	
+	set_hull_hv = method(other, function (_h, _v) {
+		var tx1 = trace_hull_x+trace_hull_xd
+		var ty1 = trace_hull_y+trace_hull_yd
+		trace_hull_x = _h
+		trace_hull_y = _v
+		trace_hull_xd = tx1-trace_hull_x
+		trace_hull_yd = ty1-trace_hull_y
+	})
+	
+	set_hull_d = method(other, function (_h, _v) {
+		trace_hull_xd = _h-trace_hull_x
+		trace_hull_yd = _v-trace_hull_y
+	})
+	
 	render_callback = method(other, function (_region) begin
 		var scale = 1/20
 		draw_2d_bkd(_region)
@@ -1176,23 +1255,53 @@ with add_region("2d Viewport (XY)", new Region(1, 1))
 				set_locked_region(_region)
 				LOCK = true
 			}
+			
+			if mouse_check_button_pressed(mb_left)
+			{
+				set_locked_region(_region)
+				LOCK = true
+			}
+			
+			if mouse_check_button_pressed(mb_right)
+			{
+				set_locked_region(_region)
+				LOCK = true
+			}
 		}
 	
+		var sw = (1/viewport_tall) * _region.scroll_zoom
 		if LOCK and region_has_focus(_region)
 		{
-			if mouse_check_button_released(mb_middle)
+			var mmd = mouse_check_button(mb_middle)
+			var mld = mouse_check_button(mb_left)
+			var mrd = mouse_check_button(mb_right)
+			
+			if not (mmd or mld or mrd)
 			{
 				set_locked_region(undefined)
 				LOCK = false
 				return
 			}
-		
-			var sw = (1/viewport_tall) * _region.scroll_zoom
-			_region.scroll_h -= window_mouse_get_delta_x() * sw
-			_region.scroll_v += window_mouse_get_delta_y() * sw
+			
+			if mmd
+			{
+				_region.scroll_h -= window_mouse_get_delta_x() * sw
+				_region.scroll_v += window_mouse_get_delta_y() * sw
+			}
+			var mh = (_region.xmouse-viewport_wide*0.5) * +sw + _region.scroll_h
+			var mv = (_region.ymouse-viewport_tall*0.5) * -sw + _region.scroll_v
+			if mrd
+			{
+				_region.set_hull_hv(mh, mv)
+			}
+			
+			if mld
+			{
+				_region.set_hull_d(mh, mv)
+			}
 			return
 		}
-
+		
 	end)
 }
 
@@ -1201,6 +1310,19 @@ with add_region("2d Viewport (XZ)", new Region(1, 0))
 	other.region_2d_xz = self
 	type = REGION_TYPE_2D
 	set_zoom(BASE_ZOOM_2D)
+	set_hull_hv = method(other, function (_h, _v)
+	{
+		var tx1 = trace_hull_x+trace_hull_xd
+		var tz1 = trace_hull_z+trace_hull_zd
+		trace_hull_x = _h
+		trace_hull_z = _v
+		trace_hull_xd = tx1-trace_hull_x
+		trace_hull_zd = tz1-trace_hull_z
+	})
+	set_hull_d = method(other, function (_h, _v) {
+		trace_hull_xd = _h-trace_hull_x
+		trace_hull_zd = _v-trace_hull_z
+	})
 	render_callback = method(other, function (_region) begin
 		var scale = 1/20
 	
@@ -1285,6 +1407,19 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 	set_2d_plane(1, 0, 0)
 	type = REGION_TYPE_2D
 	set_zoom(BASE_ZOOM_2D)
+	set_hull_hv = method(other, function (_h, _v)
+	{
+		var ty1 = trace_hull_y+trace_hull_yd
+		var tz1 = trace_hull_z+trace_hull_zd
+		trace_hull_y = _h
+		trace_hull_z = _v
+		trace_hull_yd = ty1-trace_hull_y
+		trace_hull_zd = tz1-trace_hull_z
+	})
+	set_hull_d = method(other, function (_h, _v) {
+		trace_hull_yd = _h-trace_hull_y
+		trace_hull_zd = _v-trace_hull_z
+	})
 	render_callback = method(other, function (_region) begin
 	
 		draw_2d_bkd(_region)
@@ -1404,6 +1539,19 @@ trace_hull = rect_create()
 trace_hull_x = 0
 trace_hull_y = 0
 trace_hull_z = 0
+trace_hull_xd = 1
+trace_hull_yd = 0
+trace_hull_zd = 0
+trace_hull_did_hit = false
+trace_hull_hit_time = 1
+trace_hull_hit_hull = rect_create()
+trace_hull_hit_x = 0
+trace_hull_hit_y = 0
+trace_hull_hit_z = 0
+trace_hull_point_x = 0
+trace_hull_point_y = 0
+trace_hull_point_z = 0
+trace_hull_boxes = ds_list_create()
 
 trace_predicate_normal = method(self, function (_x, _y, _z) {
 	ds_list_add(trace_boxes, vec_create(_x, _y, _z))
@@ -1527,17 +1675,75 @@ trace_predicate_down = method(self, function (_x, _y, _z, _downsearch) {
 	return TRACE_CEL_CONTAINED_COLLIDERS | (TRACE_COLLIDED * did)
 })
 
+trace_predicate_hull = method(self, function (_x, _y, _z) {
+	if global.__TRACE_HULL_STAGE == 1
+	{
+		ds_list_add(trace_hull_boxes, vec_create(_x, _y, _z))
+	}
+	
+	var shapes = map.get(_x, _y, _z).collision_shapes
+	
+	if array_length(shapes) <= 0
+	{
+		return false
+	}
+	
+	var did = false
+				
+	for (var i = array_length(shapes); --i >= 0;)
+	{
+		var shape = shapes[i]
+					
+		var x0 = shape.x0 + _x
+		var y0 = shape.y0 + _y
+		var z0 = shape.z0 + _z
+		var x1 = shape.x1 + _x
+		var y1 = shape.y1 + _y
+		var z1 = shape.z1 + _z
+					
+		if trace_context.test(x0, y0, z0, x1, y1, z1)
+		{
+			var tt = trace_context.near_time
+			if tt < trace_hull_hit_time
+			{
+				trace_hull_did_hit=true
+				trace_hull_hit_time = tt
+				global.__TRACE_NEAREST = tt
+
+				rect_set_corners(trace_hull_hit_hull, x0, y0, z0, x1, y1, z1)
+				did = true
+
+				trace_hull_hit_x = _x
+				trace_hull_hit_y = _y
+				trace_hull_hit_z = _z
+				//trace_normal_x = trace_context.normal_x
+				//trace_normal_y = trace_context.normal_y
+				//trace_normal_z = trace_context.normal_z
+				trace_hull_point_x = trace_context.hit_x
+				trace_hull_point_y = trace_context.hit_y
+				trace_hull_point_z = trace_context.hit_z
+				
+			}
+		}
+	}
+	return did
+})
+
 function trace_update_hull ()
 {
-	trace_hull_x = cursor_3d_x
-	trace_hull_y = cursor_3d_y
-	trace_hull_z = cursor_3d_z
+	//trace_hull_x = cursor_3d_x
+	//trace_hull_y = cursor_3d_y
+	//trace_hull_z = cursor_3d_z
 	rect_set_from(trace_hull, trace_source_hull)
 	rect_offset(trace_hull, trace_hull_x, trace_hull_y, trace_hull_z)
 }
 
 function draw_trace_stuff ()
 {
+	if not views_show_camera_trace
+	{
+		return
+	}
 	
 	draw_set_color(c_yellow)
 	draw_primitive_begin(pr_linelist)
@@ -1582,9 +1788,84 @@ function draw_trace_stuff ()
 
 function draw_trace_hull ()
 {
+	gpu_push_state()
+	gpu_set_ztestenable(true)
+	gpu_set_zwriteenable(true)
 	draw_primitive_begin(pr_linelist)
-	corners_linelist(trace_hull.x0, trace_hull.y0, trace_hull.z0, trace_hull.x1, trace_hull.y1, trace_hull.z1)
+	
+	var tx = trace_hull_x
+	var ty = trace_hull_y
+	var tz = trace_hull_z
+	var txd = trace_hull_xd
+	var tyd = trace_hull_yd
+	var tzd = trace_hull_zd
+	
+	var tex = tx+txd
+	var tey = ty+tyd
+	var tez = tz+tzd
+	
+	var tx0 = trace_source_hull.x0
+	var ty0 = trace_source_hull.y0
+	var tz0 = trace_source_hull.z0
+	var tx1 = trace_source_hull.x1
+	var ty1 = trace_source_hull.y1
+	var tz1 = trace_source_hull.z1
+
+	draw_set_color(trace_hull_did_hit ? c_lime : c_white)
+	corners_linelist(tx0+tx, ty0+ty, tz0+tz, tx1+tx, ty1+ty, tz1+tz)
+	
+	
+	draw_set_color(c_red)
+	draw_vertex_3d(tx, ty, tz)
+	draw_vertex_3d(tx+txd, ty+tyd, tz+tzd)
+	
+	draw_set_color(c_yellow)
+	corners_linelist(tx0+tex, ty0+tey, tz0+tez, tx1+tex, ty1+tey, tz1+tez)
+	
+	draw_set_color(c_lime)
+	for (var j = 0b000; j <= 0b111; j++)
+	{
+		var xc = ((j & 0b001) <> 0 ? tx1 : tx0)+tx
+		var yc = ((j & 0b010) <> 0 ? ty1 : ty0)+ty
+		var zc = ((j & 0b100) <> 0 ? tz1 : tz0)+tz
+		
+		draw_vertex_3d(xc, yc, zc)
+		draw_vertex_3d(xc+txd, yc+tyd, zc+tzd)
+		
+	}
+	
+	if trace_hull_did_hit
+	{
+		draw_set_color(c_red)
+		var thx = tx+txd * trace_hull_hit_time
+		var thy = ty+tyd * trace_hull_hit_time
+		var thz = tz+tzd * trace_hull_hit_time
+		corners_linelist(tx0+thx, ty0+thy, tz0+thz, tx1+thx, ty1+thy, tz1+thz)
+	}
+	
 	draw_primitive_end()
+	
+	static vfff = function () {
+		vertex_format_begin()
+		vertex_format_add_position_3d()
+		vertex_format_add_colour()
+		return vertex_format_end()
+	}()
+	static vvvv = vertex_create_buffer()
+	
+	vertex_begin(vvvv, vfff)
+	draw_set_color(c_aqua)
+	var asz0 = 0.001
+	var asz1 = 1-asz0
+	for (var j = ds_list_size(trace_hull_boxes); --j >= 0;)
+	{
+		var box = trace_hull_boxes[| j]
+		corners_vlist_aaa(vvvv, box.x+asz0, box.y+asz0, box.z+asz0, box.x+asz1, box.y+asz1, box.z+asz1)
+	}
+	vertex_end(vvvv)
+	vertex_submit(vvvv, pr_linelist, -1)
+	gpu_pop_state()
+	
 }
 
 #endregion
@@ -1653,6 +1934,12 @@ function draw_axis_bauble (_xs=1, _ys=1, _zs=1)
 
 function draw_cameray_things ()
 {
+	static sc_m = [
+		0.5, 0,0,0,
+		0, 0.5, 0,0,
+		0, 0, 0.5, 0,
+		0,0,0,1
+	]
 	draw_set_color(c_yellow)
 	
 	var c = cam
@@ -1663,6 +1950,7 @@ function draw_cameray_things ()
 	draw_set_color(c_black)
 	matrix_stack_push(matrix_build(cx, cy, cz, 0,0,0, 1,1,1))
 	matrix_stack_push(c.look_matrix)
+	matrix_stack_push(sc_m)
 	matrix_push(matrix_world, matrix_stack_top_clear())
 	draw_camera_bauble()
 	matrix_pop(matrix_world)
