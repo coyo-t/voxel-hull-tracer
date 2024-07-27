@@ -67,6 +67,7 @@ cursor_box = begin
 	
 end
 
+
 function draw_cursor_box ()
 {
 	var x0 = cursor_box.x
@@ -133,14 +134,21 @@ function draw_view_and_bezel (_region)
 	gpu_pop_state()
 
 	
+	gpu_push_state()
 	if region_has_focus(_region)
 	{
+		gpu_set_blendmode(bm_add)
+		draw_sprite_stretched(spr_region_focused_corners, 0, _x+3, _y+3, viewport_wide-6, viewport_tall-6)
+		gpu_set_blendmode(bm_subtract)
+		draw_sprite_stretched(spr_region_focused_corners, 1, _x+3, _y+3, viewport_wide-6, viewport_tall-6)
+		gpu_set_blendmode(bm_normal)
 		draw_sprite_stretched(spr_viewport_focused, 0, _x, _y, viewport_wide, viewport_tall)
 	}
 	else
 	{
 		draw_sprite_stretched(spr_viewport_bezel, 0, _x, _y, viewport_wide, viewport_tall)
 	}
+	gpu_pop_state()
 	draw_set_color(c_white)
 
 
@@ -481,7 +489,7 @@ function region_ortho_matrix (_region)
 {
 	return matrix_build_projection_ortho(
 		room_width/room_height*_region.scroll_zoom,
-		1*_region.scroll_zoom,
+		-1*_region.scroll_zoom,
 		-100,
 		+100
 	)
@@ -493,27 +501,110 @@ region_3d = add_region("3d Viewport", new Region(0, 0))
 region_3d.type = REGION_TYPE_3D
 region_3d.step_priority = 1
 region_3d.render_callback = method(self, function (_region) begin
+	static FUCK = vertex_create_buffer()
+	static FUCK_FORMAT = function () {
+		vertex_format_begin()
+		vertex_format_add_position_3d()
+		return vertex_format_end()
+	}()
+	
 	matrix_stack_push(view_roto_matrix)
 	matrix_stack_push(matrix_build(0, 0, 0, -view_pitch,0,0, 1,1,1))
 	matrix_stack_push(matrix_build(0, 0, 0, 0,0,-view_yaw, 1,1,1))
-	matrix_stack_push(matrix_build(-x, -y, -z, 0,0,0, 1,1,1))
-	matrix_push(matrix_view, matrix_stack_top_clear())
+	var cam_rot_mat = matrix_stack_top()
+	matrix_stack_clear()
+	matrix_push(matrix_view, cam_rot_mat)
 
 	matrix_stack_push(matrix_build_projection_perspective_fov(70, room_width/room_height, 0.001, 100))
 	matrix_push(matrix_projection, matrix_stack_top_clear())
 
 	gpu_push_state()
 	draw_clear_depth(1)
-	draw_clear(c_purple)
+	
+	var asp = room_width/room_height
+	var u0 = -asp*0.5+0.5
+	var v0 = 0
+	var u1 = +asp*0.5+0.5
+	var v1 = 1
+	shader_set(shader_3d_bkd)
+	vertex_begin(FUCK, FUCK_FORMAT)
+	vertex_position_3d(FUCK, 0, 0, 1)
+	vertex_position_3d(FUCK, 1, 0, 0)
+	vertex_position_3d(FUCK, 0, 1, 0)
+	
+	vertex_position_3d(FUCK, 0, 0, 1)
+	vertex_position_3d(FUCK, 0, 1, 0)
+	vertex_position_3d(FUCK, -1, 0, 0)
+	
+	vertex_position_3d(FUCK, 0, 0, 1)
+	vertex_position_3d(FUCK, 0, -1, 0)
+	vertex_position_3d(FUCK, 1, 0, 0)
+
+	vertex_position_3d(FUCK, 0, 0, 1)
+	vertex_position_3d(FUCK, -1, 0, 0)
+	vertex_position_3d(FUCK, 0, -1, 0)
+
+	vertex_position_3d(FUCK, 0, 0, -1)
+	vertex_position_3d(FUCK, 1, 0, 0)
+	vertex_position_3d(FUCK, 0, 1, 0)
+	
+	vertex_position_3d(FUCK, 0, 0, -1)
+	vertex_position_3d(FUCK, 0, 1, 0)
+	vertex_position_3d(FUCK, -1, 0, 0)
+	
+	vertex_position_3d(FUCK, 0, 0, -1)
+	vertex_position_3d(FUCK, 0, -1, 0)
+	vertex_position_3d(FUCK, 1, 0, 0)
+
+	vertex_position_3d(FUCK, 0, 0, -1)
+	vertex_position_3d(FUCK, -1, 0, 0)
+	vertex_position_3d(FUCK, 0, -1, 0)
+	
+	vertex_end(FUCK)
+	
+	vertex_submit(FUCK, pr_trianglelist, sprite_get_texture(tex_sky_ramp_dark_ice, 0))
+	shader_reset()
+	
+	draw_clear_depth(1)
 	gpu_set_ztestenable(true)
 	gpu_set_zwriteenable(true)
 	gpu_set_cullmode(cull_counterclockwise)
+
+	matrix_pop(matrix_view)
+	matrix_stack_push(cam_rot_mat)
+	matrix_stack_push(matrix_build(-x, -y, -z, 0,0,0, 1,1,1))
+	matrix_push(matrix_view, matrix_stack_top_clear())
 
 	build_map_if_not_already()
 	vertex_submit(builder.vb, pr_trianglelist, -1)
 
 	draw_world_axis()
 
+	if trace_hit
+	{
+		draw_set_color(c_yellow)
+		draw_primitive_begin(pr_linelist)
+		
+		var time = get_timer()/1000000
+		
+		var pulse = (sin(time * pi * 4) * 0.5 + 0.5) * (0.5/16)
+		var margin = 0.01
+		var minofs = margin+pulse
+		var maxofs = 1 + minofs
+		
+		var x0 = trace_hit_x - minofs
+		var y0 = trace_hit_y - minofs
+		var z0 = trace_hit_z - minofs
+		var x1 = trace_hit_x + maxofs
+		var y1 = trace_hit_y + maxofs
+		var z1 = trace_hit_z + maxofs
+		
+		corners_linelist(x0, y0, z0, x1, y1, z1)
+		
+		draw_primitive_end()
+	}
+	
+	draw_set_color(c_white)
 	matrix_pop(matrix_view)
 	matrix_pop(matrix_projection)
 	gpu_pop_state()
@@ -626,6 +717,76 @@ region_3d.step_callback = method(self, function (_region) begin
 		0, 0, 0, 1
 	]
 	
+	audio_listener_position(x, y, z)
+	audio_listener_orientation(camera.forward.x, camera.forward.y, camera.forward.z, camera.up.x, camera.up.y, camera.up.z)
+	
+	var reach = 5
+	trace_x0 = x
+	trace_y0 = y
+	trace_z0 = z
+	trace_x1 = x+camera.forward.x*reach
+	trace_y1 = y+camera.forward.y*reach
+	trace_z1 = z+camera.forward.z*reach
+	
+	ds_list_clear(trace_boxes)
+	trace_hit = map.trace_line(
+		trace_x0,
+		trace_y0,
+		trace_z0,
+		trace_x1,
+		trace_y1,
+		trace_z1,
+		method(self, function (_x, _y, _z) {
+			ds_list_add(trace_boxes, vec_create(_x, _y, _z))
+			trace_hit_x = _x
+			trace_hit_y = _y
+			trace_hit_z = _z
+			
+			return array_length(map.get(_x, _y, _z).collision_shapes) > 0
+		})
+	)
+	
+	if mouse_grabbed and trace_hit
+	{
+		var any_change = false
+		var m = 0
+		
+		var ox, oy, oz
+		if mouse_check_button_pressed(mb_left)
+		{
+			ox = trace_hit_x
+			oy = trace_hit_y
+			oz = trace_hit_z
+			any_change = map.set(trace_hit_x, trace_hit_y, trace_hit_z, global.AIR)
+			m = 1
+		}
+		else if mouse_check_button_pressed(mb_right)
+		{
+			ox = trace_hit_x + trace_normal_x
+			oy = trace_hit_y + trace_normal_y
+			oz = trace_hit_z + trace_normal_z
+			if map.get(ox, oy, oz).replacable
+			{
+				any_change = map.set(ox, oy, oz, global.DIRT)
+			}
+			m = 2
+		}
+		
+		if any_change
+		{
+			map_built = false
+			
+			if m == 1
+			{
+				audio_play_sound_at(sfx_break_bloc, ox+0.5, oy+0.5, oz+0.5, 0, 0, 0, false, 1)
+			}
+			else if m == 2
+			{
+				audio_play_sound_at(sfx_put_bloc, ox+0.5, oy+0.5, oz+0.5, 0, 0, 0, false, 1)
+			}
+		}
+	}
+	
 end)
 
 region_2d_xy = add_region("2d Viewport (XY)", new Region(1, 1))
@@ -633,6 +794,10 @@ region_2d_xy.type = REGION_TYPE_2D
 region_2d_xy.set_zoom(BASE_ZOOM_2D)
 region_2d_xy.render_callback = method(self, function (_region) begin
 	var scale = 1/20
+	draw_2d_bkd(_region)
+	
+	matrix_stack_push(matrix_build(0, 0, 0, 180, 0, 0, 1,1,1))
+	//matrix_stack_push(matrix_build(0, 0, 0, 0, 0, 180, 1,1,1))
 	matrix_stack_push(matrix_build(-_region.scroll_h, -_region.scroll_v, -map.zsize, 0, 0, 0, 1,1,1))
 	matrix_push(matrix_view, matrix_stack_top_clear())
 	
@@ -641,8 +806,11 @@ region_2d_xy.render_callback = method(self, function (_region) begin
 	
 	gpu_push_state()
 	
+	gpu_set_ztestenable(true)
+	gpu_set_zwriteenable(true)
+	
 	draw_clear_depth(1)
-	draw_clear(c_dkgrey)
+	//draw_clear(c_dkgrey)
 	
 	//draw_set_color(c_white)
 	//draw_primitive_begin(pr_trianglefan)
@@ -682,8 +850,14 @@ region_2d_xy.render_callback = method(self, function (_region) begin
 	
 	draw_primitive_end()
 	
+	draw_clear_depth(1)
+	
+	build_map_if_not_already()
+	vertex_submit(builder.vb, pr_trianglelist, -1)
 	
 	draw_cameray_things()
+	draw_trace_stuff()
+	
 	draw_set_color(c_white)
 
 	matrix_pop(matrix_view)
@@ -748,7 +922,11 @@ region_2d_xz.type = REGION_TYPE_2D
 region_2d_xz.set_zoom(BASE_ZOOM_2D)
 region_2d_xz.render_callback = method(self, function (_region) begin
 	var scale = 1/20
-	matrix_stack_push(matrix_build(0, 0, 0, 90, 0, 0, 1,1,1))
+	
+	draw_2d_bkd(_region)
+	
+	matrix_stack_push(matrix_build(0, 0, 0, -90, 0, 0, 1,1,1))
+	//matrix_stack_push(matrix_build(0, 0, 0, 0, 0, 180, 1,1,1))
 	matrix_stack_push(matrix_build(-_region.scroll_h, -map.ysize, -_region.scroll_v, 0, 0, 0, 1,1,1))
 
 	matrix_push(matrix_view, matrix_stack_top_clear())
@@ -757,9 +935,10 @@ region_2d_xz.render_callback = method(self, function (_region) begin
 	matrix_push(matrix_projection, matrix_stack_top_clear())
 	
 	gpu_push_state()
-	
+	gpu_set_ztestenable(true)
+	gpu_set_zwriteenable(true)
 	draw_clear_depth(1)
-	draw_clear(c_dkgrey)
+	//draw_clear(c_dkgrey)
 	
 	//draw_set_color(c_white)
 	//draw_primitive_begin(pr_trianglefan)
@@ -802,8 +981,13 @@ region_2d_xz.render_callback = method(self, function (_region) begin
 	
 	draw_primitive_end()
 	
+	draw_clear_depth(1)
+		build_map_if_not_already()
+	vertex_submit(builder.vb, pr_trianglelist, -1)
+	
 	draw_cameray_things()
 	
+	draw_trace_stuff()
 	draw_set_color(c_white)
 	matrix_pop(matrix_view)
 	matrix_pop(matrix_projection)
@@ -833,10 +1017,12 @@ region_2d_yz.type = REGION_TYPE_2D
 region_2d_yz.set_zoom(BASE_ZOOM_2D)
 region_2d_yz.render_callback = method(self, function (_region) begin
 	
+	draw_2d_bkd(_region)
+	
 	var scale = 1/20
-	matrix_stack_push(matrix_build(0, 0, 0, 90, 0, 0, 1,1,1))
+	matrix_stack_push(matrix_build(0, 0, 0, -90, 0, 0, 1,1,1))
 	matrix_stack_push(matrix_build(0, 0, 0, 0, 0, 90, 1,1,1))
-	matrix_stack_push(matrix_build(-map.xsize, -_region.scroll_h, -_region.scroll_v, 0, 0, 0, 1,1,1))
+	matrix_stack_push(matrix_build(map.xsize, -_region.scroll_h, -_region.scroll_v, 0, 0, 0, 1,1,1))
 
 	matrix_push(matrix_view, matrix_stack_top_clear())
 	
@@ -844,9 +1030,10 @@ region_2d_yz.render_callback = method(self, function (_region) begin
 	matrix_push(matrix_projection, matrix_stack_top_clear())
 	
 	gpu_push_state()
-	
+	gpu_set_ztestenable(true)
+	gpu_set_zwriteenable(true)
 	draw_clear_depth(1)
-	draw_clear(c_dkgrey)
+	//draw_clear(c_dkgrey)
 	
 	//draw_set_color(c_white)
 	//draw_primitive_begin(pr_trianglefan)
@@ -881,7 +1068,13 @@ region_2d_yz.render_callback = method(self, function (_region) begin
 	
 	draw_primitive_end()
 	
+	draw_clear_depth(1)
+	
+		build_map_if_not_already()
+	vertex_submit(builder.vb, pr_trianglelist, -1)
 	draw_cameray_things()
+	
+	draw_trace_stuff()
 	
 	draw_set_color(c_white)
 	matrix_pop(matrix_view)
@@ -906,3 +1099,58 @@ region_2d_yz.render_callback = method(self, function (_region) begin
 	}
 end)
 region_2d_yz.step_callback = region_2d_xy.step_callback
+
+
+trace_boxes = ds_list_create()
+trace_x0 = 0
+trace_y0 = 0
+trace_z0 = 0
+trace_x1 = 0
+trace_y1 = 0
+trace_z1 = 0
+trace_hit = false
+trace_hit_x = 0
+trace_hit_y = 0
+trace_hit_z = 0
+trace_normal_x = 0
+trace_normal_y = 0
+trace_normal_z = 1
+
+function draw_2d_bkd (_region)
+{
+	draw_rectangle_color(
+		0, 0,
+		viewport_wide, viewport_tall,
+		//#15152d, #15152d,
+		//#23234b, #23234b,
+		#23234b, #23234b,
+		#53539f, #53539f,
+		false
+	)
+}
+
+function draw_trace_stuff ()
+{
+	
+	draw_set_color(c_yellow)
+	draw_primitive_begin(pr_linelist)
+	for (var i = 0; i < ds_list_size(trace_boxes); i++)
+	{
+		var box = trace_boxes[| i]
+		var x0 = box.x
+		var y0 = box.y
+		var z0 = box.z
+		var x1 = x0 + 1
+		var y1 = y0 + 1
+		var z1 = z0 + 1
+		
+		corners_linelist(x0, y0, z0, x1, y1, z1)
+	}
+	draw_primitive_end()
+	
+	draw_set_color(c_white)
+	draw_primitive_begin(pr_linelist)
+	draw_vertex_3d(trace_x0, trace_y0, trace_z0)
+	draw_vertex_3d(trace_x1, trace_y1, trace_z1)
+	draw_primitive_end()
+}
