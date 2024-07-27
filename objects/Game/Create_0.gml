@@ -1,36 +1,12 @@
-#macro REGION_TYPE_NONE 0
-#macro REGION_TYPE_2D 1
-#macro REGION_TYPE_3D 2
+
 
 font_console = font_add_sprite(spr_kfont2, 1, false, 0)
 
 
 __NULL_REGION = new Region(0,0)
 
-x = 8
-y = -8
-z = 8
+cam = new Camera()
 
-camera = begin
-	co: vec_create(),
-	forward: vec_create(0, 1, 0),
-	right: vec_create(1, 0, 0),
-	up: vec_create(0, 0, 1),
-	flat_forward: vec_create(0, 1, 0),
-	
-	look_matrix: matrix_build_identity(),
-end
-
-cursor_box = begin
-	x: 0,
-	y: 0,
-	z: 0,
-	
-end
-
-
-view_pitch = 0
-view_yaw = 0
 
 view_roto_matrix = [
 	1, 0, 0, 0,
@@ -39,12 +15,17 @@ view_roto_matrix = [
 	0, 0, 0, 1,
 ]
 
+
+#region world
+
 map = new MapData(16, 16, 8)
 
 map_built = false
 builder = new MapModelBuilder()
+map_renderer = new MapRenderer(map)
 
-mouse_grabbed = false
+
+#endregion
 
 viewport_surf = -1
 viewport_x = 0
@@ -136,114 +117,39 @@ function invalidate_surface ()
 	}
 }
 
-function grab_mouse ()
-{
-	if mouse_grabbed
-	{
-		return
-	}
-	
-	mouse_grabbed = true
-	window_mouse_set_locked(true)
-}
-
-function release_mouse ()
-{
-	if not mouse_grabbed
-	{
-		return
-	}
-	mouse_grabbed = false
-	window_mouse_set_locked(false)
-}
-
-function draw_world_axis ()
-{
-	draw_primitive_begin(pr_linelist)
-	draw_set_color(c_red)
-	gpu_set_depth(0); draw_vertex(0, 0)
-	gpu_set_depth(0); draw_vertex(map.xsize, 0)
-	draw_set_color(c_maroon)
-	gpu_set_depth(0); draw_vertex(0, 0)
-	gpu_set_depth(0); draw_vertex(-map.xsize, 0)
-	draw_set_color(c_yellow)
-	gpu_set_depth(0); draw_vertex(0, 0)
-	gpu_set_depth(0); draw_vertex(0, map.ysize)
-	draw_set_color(c_grey)
-	gpu_set_depth(0); draw_vertex(0, 0)
-	gpu_set_depth(0); draw_vertex(0, -map.ysize)
-	draw_set_color(c_aqua)
-	gpu_set_depth(0); draw_vertex(0, 0)
-	gpu_set_depth(map.zsize); draw_vertex(0, 0)
-	draw_set_color(c_teal)
-	gpu_set_depth(0); draw_vertex(0, 0)
-	gpu_set_depth(-map.zsize); draw_vertex(0, 0)
-	draw_primitive_end()
-	draw_set_color(c_white)
-}
-
-function build_map_if_not_already ()
-{
-	if map_built
-	{
-		return
-	}
-	builder.begin_building()
-	for (var zz = 0; zz < map.zsize; zz++)
-	{
-		for (var yy = 0; yy < map.ysize; yy++)
-		{
-			for (var xx = 0; xx < map.xsize; xx++)
-			{
-				var thing = map.get(xx, yy, zz)
-				if array_length(thing.render_shapes) <= 0
-				{
-					continue
-				}
-				
-				if array_length(map.get(xx, yy, zz+1).render_shapes) <= 0
-				{
-					builder.add_top_face(thing, xx, yy, zz)
-				}
-				
-				if array_length(map.get(xx, yy, zz-1).render_shapes) <= 0
-				{
-					builder.add_bottom_face(thing, xx, yy, zz)
-				}
-				
-				if array_length(map.get(xx, yy+1, zz).render_shapes) <= 0
-				{
-					builder.add_north_face(thing, xx, yy, zz)
-				}
-				
-				if array_length(map.get(xx, yy-1, zz).render_shapes) <= 0
-				{
-					builder.add_south_face(thing, xx, yy, zz)
-				}
-				
-				if array_length(map.get(xx+1, yy, zz).render_shapes) <= 0
-				{
-					builder.add_east_face(thing, xx, yy, zz)
-				}
-				
-				if array_length(map.get(xx-1, yy, zz).render_shapes) <= 0
-				{
-					builder.add_west_face(thing, xx, yy, zz)
-				}
-			}
-		}
-	}
-	builder.end_building()
-	map_built = true
-}
-
 
 mouse = begin
 	x: 0,
 	y: 0,
 	pev_x: 0,
 	pev_y: 0,
+	
+	grabbed: false,
+	
+	grab: function ()
+	{
+		if grabbed
+		{
+			return
+		}
+		grabbed = true
+		window_mouse_set_locked(true)
+	},
+	
+	release: function ()
+	{
+		if not grabbed
+		{
+			return
+		}
+		grabbed = false
+		window_mouse_set_locked(false)
+	},
+	
+	
 end
+
+#region region things
 
 regions_by_name = {}
 region_names = []
@@ -373,25 +279,72 @@ function is_locked_region (_region)
 	return locked_region.id == _region.id
 }
 
+function region_ortho_matrix (_region)
+{
+	return matrix_build_projection_ortho(
+		room_width/room_height*_region.scroll_zoom,
+		-1*_region.scroll_zoom,
+		-100,
+		+100
+	)
+}
+
+function draw_2d_bkd (_region)
+{
+	draw_rectangle_color(
+		0, 0,
+		viewport_wide, viewport_tall,
+		//#15152d, #15152d,
+		//#23234b, #23234b,
+		//#23234b, #23234b,
+		//#53539f, #53539f,
+		c_dkgrey, c_dkgrey,
+		c_grey, c_grey,
+		false
+	)
+}
+
+#endregion
+
+
+function draw_axis_bauble (_xs=1, _ys=1, _zs=1)
+{
+	draw_primitive_begin(pr_linelist)
+	draw_set_color(c_yellow)
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(_xs, 0, 0)
+	draw_set_color(c_red)
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(0, _ys, 0)
+	draw_set_color(c_aqua)
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(0, 0, _zs)
+	draw_primitive_end()
+}
+
 function draw_cameray_things ()
 {
 	draw_set_color(c_yellow)
-
+	
+	var cx = cam.x
+	var cy = cam.y
+	var cz = cam.z
+	var c = cam
 	draw_primitive_begin(pr_linelist)
 	draw_set_color(c_yellow)
-	draw_vertex_3d(x, y, z)
-	draw_vertex_3d(x+camera.forward.x, y+camera.forward.y, z+camera.forward.z)
+	draw_vertex_3d(cx, cy, cz)
+	draw_vertex_3d(cx+c.forward_x, cy+c.forward_y, cz+c.forward_z)
 	draw_set_color(c_red)
-	draw_vertex_3d(x, y, z)
-	draw_vertex_3d(x+camera.right.x, y+camera.right.y, z+camera.right.z)
+	draw_vertex_3d(cx, cy, cz)
+	draw_vertex_3d(cx+c.right_x, cy+c.right_y, cz+c.right_z)
 	draw_set_color(c_aqua)
-	draw_vertex_3d(x, y, z)
-	draw_vertex_3d(x+camera.up.x, y+camera.up.y, z+camera.up.z)
+	draw_vertex_3d(cx, cy, cz)
+	draw_vertex_3d(cx+c.up_x, cy+c.up_y, cz+c.up_z)
 	draw_primitive_end()
 	
 	draw_set_color(c_black)
-	matrix_stack_push(matrix_build(x, y, z, 0,0,0, 1,1,1))
-	matrix_stack_push(camera.look_matrix)
+	matrix_stack_push(matrix_build(cx, cy, cz, 0,0,0, 1,1,1))
+	matrix_stack_push(c.look_matrix)
 	matrix_push(matrix_world, matrix_stack_top_clear())
 	draw_camera_bauble()
 	matrix_pop(matrix_world)
@@ -449,18 +402,10 @@ function draw_camera_bauble ()
 	draw_primitive_end()
 }
 
-function region_ortho_matrix (_region)
-{
-	return matrix_build_projection_ortho(
-		room_width/room_height*_region.scroll_zoom,
-		-1*_region.scroll_zoom,
-		-100,
-		+100
-	)
-}
-
 
 var BASE_ZOOM_2D = 20
+
+#region regions themselves
 
 with add_region("3d Viewport", new Region(0, 0))
 {
@@ -494,8 +439,8 @@ with add_region("3d Viewport", new Region(0, 0))
 							break
 						case "reset angles":
 							_region.HUD_TXT = "Okay! ovo"
-							view_yaw = 0
-							view_pitch = 0
+							cam.yaw = 0
+							cam.pitch = 0
 							break
 						case "pod people":
 							_region.HUD_TXT = "HAHA, WOW!!!"
@@ -521,9 +466,9 @@ with add_region("3d Viewport", new Region(0, 0))
 				_region.action = "TYPING"
 				set_locked_region(_region)
 				keyboard_string = ""
-				if mouse_grabbed
+				if mouse.grabbed
 				{
-					release_mouse()
+					mouse.release()
 					window_mouse_set((_region.x0+_region.x1)*0.5, (_region.y0+_region.y1)*0.5)
 				}
 				return
@@ -531,11 +476,11 @@ with add_region("3d Viewport", new Region(0, 0))
 			else
 			{
 				var clc = keyboard_check_pressed(ord("Z"))
-				if mouse_grabbed
+				if mouse.grabbed
 				{
 					if clc or keyboard_check_pressed(vk_escape)
 					{
-						release_mouse()
+						mouse.release()
 						window_mouse_set((_region.x0+_region.x1)*0.5, (_region.y0+_region.y1)*0.5)
 						set_locked_region(undefined)
 						_region.action = "NONE"
@@ -545,7 +490,7 @@ with add_region("3d Viewport", new Region(0, 0))
 				{
 					if clc
 					{
-						grab_mouse()
+						mouse.grab()
 						set_locked_region(_region)
 						_region.action = "CAMERA"
 					}
@@ -554,16 +499,15 @@ with add_region("3d Viewport", new Region(0, 0))
 		}
 		
 		var cinp = _region.action == "CAMERA"
+		var c = cam
 		
 		if cinp
 		{
-			//if is_locked_region(_region) and mouse_grabbed
-			{
-				view_yaw   += window_mouse_get_delta_x() * (1/6)
-				view_pitch += window_mouse_get_delta_y() * (1/6)
-
-				view_pitch = clamp(view_pitch, -90, +90)
-			}
+			var turn_speed = 1/6
+			c.turn(
+				(-window_mouse_get_delta_y() * turn_speed) * not keyboard_check(vk_control),
+				(+window_mouse_get_delta_x() * turn_speed) * not keyboard_check(ord("V"))
+			)
 		}
 		
 		if region_has_focus(_region) and _region.action <> "TYPING"
@@ -578,56 +522,24 @@ with add_region("3d Viewport", new Region(0, 0))
 				ewinp *= s
 				nsinp *= s
 			}
-	
+			
 			var dt = delta_time / 1000000
 			var spd = dt * 10
 
-			var si = dsin(view_yaw)
-			var ci = dcos(view_yaw)
+			var si = c.flat_forward_x
+			var ci = c.flat_forward_y
 
-			x += (ewinp * ci + nsinp * si) * spd
-			y += (nsinp * ci - ewinp * si) * spd
-			z += udinp * spd
-
-			var sv = -dsin(view_pitch)
-			var cv = +dcos(view_pitch)
-
-			camera.flat_forward.x = si
-			camera.flat_forward.y = ci
-
-			camera.forward.x = si * cv
-			camera.forward.y = ci * cv
-			camera.forward.z = sv
-
-			camera.right.x = +ci
-			camera.right.y = -si
-			camera.right.z = 0
-
-			camera.up.x = -si * sv
-			camera.up.y = -ci * sv
-			camera.up.z = cv
-
-			cursor_box.x = x + camera.forward.x * 4
-			cursor_box.y = y + camera.forward.y * 4
-			cursor_box.z = z + camera.forward.z * 4
-	
-			camera.look_matrix = [
-				camera.right.x, camera.right.y, camera.right.z, 0,
-				camera.forward.x, camera.forward.y, camera.forward.z, 0,
-				camera.up.x, camera.up.y, camera.up.z, 0,
-				0, 0, 0, 1
-			]
-	
-			audio_listener_position(x, y, z)
-			audio_listener_orientation(camera.forward.x, camera.forward.y, camera.forward.z, camera.up.x, camera.up.y, camera.up.z)
-	
+			c.x += (ewinp * ci + nsinp * si) * spd
+			c.y += (nsinp * ci - ewinp * si) * spd
+			c.z += udinp * spd
+			
 		}
 		
 		
 		var reach = 10//5
-		trace_x0 = x
-		trace_y0 = y
-		trace_z0 = z
+		trace_x0 = c.x
+		trace_y0 = c.y
+		trace_z0 = c.z
 		
 		if region_has_focus(_region) and _region.action == "NONE"
 		{
@@ -643,17 +555,17 @@ with add_region("3d Viewport", new Region(0, 0))
 			ty1 *= mag
 			tz1 *= mag
 		
-			var tr = matrix_transform_vertex(camera.look_matrix, tx1, ty1, tz1, 0)
+			var tr = matrix_transform_vertex(c.look_matrix, tx1, ty1, tz1, 0)
 		
-			trace_x1 = x+tr[0]*reach
-			trace_y1 = y+tr[1]*reach
-			trace_z1 = z+tr[2]*reach
+			trace_x1 = c.x+tr[0]*reach
+			trace_y1 = c.y+tr[1]*reach
+			trace_z1 = c.z+tr[2]*reach
 		}
 		else
 		{
-			trace_x1 = x+camera.forward.x*reach
-			trace_y1 = y+camera.forward.y*reach
-			trace_z1 = z+camera.forward.z*reach
+			trace_x1 = c.x+c.forward_x*reach
+			trace_y1 = c.y+c.forward_y*reach
+			trace_z1 = c.z+c.forward_z*reach
 		}
 		
 		ds_list_clear(trace_boxes)
@@ -673,6 +585,9 @@ with add_region("3d Viewport", new Region(0, 0))
 				return array_length(map.get(_x, _y, _z).collision_shapes) > 0
 			})
 		)
+		trace_normal_x = global.__HIT_NORMAL[0]
+		trace_normal_y = global.__HIT_NORMAL[1]
+		trace_normal_z = global.__HIT_NORMAL[2]
 		
 		if region_has_focus(_region) and trace_hit
 		{
@@ -685,7 +600,7 @@ with add_region("3d Viewport", new Region(0, 0))
 				ox = trace_hit_x
 				oy = trace_hit_y
 				oz = trace_hit_z
-				any_change = map.set(trace_hit_x, trace_hit_y, trace_hit_z, global.AIR)
+				any_change = map.set(trace_hit_x, trace_hit_y, trace_hit_z, global.BLOCKS.AIR)
 				m = 1
 			}
 			else if mouse_check_button_pressed(mb_right)
@@ -695,7 +610,7 @@ with add_region("3d Viewport", new Region(0, 0))
 				oz = trace_hit_z + trace_normal_z
 				if map.get(ox, oy, oz).replacable
 				{
-					any_change = map.set(ox, oy, oz, global.DIRT)
+					any_change = map.set(ox, oy, oz, global.BLOCKS.DIRT)
 				}
 				m = 2
 			}
@@ -703,7 +618,7 @@ with add_region("3d Viewport", new Region(0, 0))
 			
 			if m == 1 and any_change
 			{
-				map_built = false
+				map_renderer.built = false
 				audio_play_sound_at(sfx_break_bloc, ox+0.5, oy+0.5, oz+0.5, 0, 0, 0, false, 1)
 			}
 				
@@ -712,7 +627,7 @@ with add_region("3d Viewport", new Region(0, 0))
 				if any_change
 				{
 					audio_play_sound_at(sfx_put_bloc, ox+0.5, oy+0.5, oz+0.5, 0, 0, 0, false, 1)
-					map_built = false
+					map_renderer.built = false
 				}
 				else
 				{
@@ -727,12 +642,9 @@ with add_region("3d Viewport", new Region(0, 0))
 
 	render_callback = method(other, function (_region) begin
 		static BKD_OCT = create_bkd_octohedron()
-		
-		matrix_stack_push(view_roto_matrix)
-		matrix_stack_push(matrix_build(0, 0, 0, -view_pitch,0,0, 1,1,1))
-		matrix_stack_push(matrix_build(0, 0, 0, 0,0,-view_yaw, 1,1,1))
-		var cam_rot_mat = matrix_stack_top()
-		matrix_stack_clear()
+		var c = cam
+
+		var cam_rot_mat = c.view_matrix
 		matrix_push(matrix_view, cam_rot_mat)
 
 		matrix_stack_push(matrix_build_projection_perspective_fov(59, room_width/room_height, 0.001, 100))
@@ -755,13 +667,11 @@ with add_region("3d Viewport", new Region(0, 0))
 
 		matrix_pop(matrix_view)
 		matrix_stack_push(cam_rot_mat)
-		matrix_stack_push(matrix_build(-x, -y, -z, 0,0,0, 1,1,1))
+		matrix_stack_push(matrix_build(-c.x, -c.y, -c.z, 0,0,0, 1,1,1))
 		matrix_push(matrix_view, matrix_stack_top_clear())
 
-		build_map_if_not_already()
-		vertex_submit(builder.vb, pr_trianglelist, -1)
-
-		draw_world_axis()
+		map_renderer.draw()
+		map_renderer.draw_world_axis()
 
 		if trace_hit
 		{
@@ -788,7 +698,8 @@ with add_region("3d Viewport", new Region(0, 0))
 		}
 	
 		draw_3d_cursor()
-	
+
+		
 		draw_set_color(c_white)
 		matrix_pop(matrix_view)
 		matrix_pop(matrix_projection)
@@ -803,15 +714,15 @@ with add_region("3d Viewport", new Region(0, 0))
 
 		var fa = draw_get_halign()
 		var va = draw_get_valign()
-
 		
-
 		{
 			draw_set_halign(fa_right)
 			draw_set_valign(fa_bottom)
 			
-			//var s = $"{_region.HUD_TXT}\n{x}, {y}, {z}"
-			var s = $"{_region.HUD_TXT}\nmouse: {string_format(_region.xmouse/viewport_wide,0,4)}, {string_format(_region.ymouse/viewport_tall,0,4)}"
+			var s = string_join("\n", 
+				_region.HUD_TXT,
+			)
+			
 			
 			var sw = string_width(s)
 			var sh = string_height(s)
@@ -927,9 +838,8 @@ with add_region("2d Viewport (XY)", new Region(1, 1))
 		draw_primitive_end()
 	
 		draw_clear_depth(1)
-	
-		build_map_if_not_already()
-		vertex_submit(builder.vb, pr_trianglelist, -1)
+		
+		map_renderer.draw()
 	
 		draw_cameray_things()
 		draw_trace_stuff()
@@ -1046,8 +956,7 @@ with add_region("2d Viewport (XZ)", new Region(1, 0))
 		draw_primitive_end()
 	
 		draw_clear_depth(1)
-			build_map_if_not_already()
-		vertex_submit(builder.vb, pr_trianglelist, -1)
+		map_renderer.draw()
 	
 		draw_cameray_things()
 	
@@ -1130,8 +1039,7 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 	
 		draw_clear_depth(1)
 	
-		build_map_if_not_already()
-		vertex_submit(builder.vb, pr_trianglelist, -1)
+		map_renderer.draw()
 		draw_cameray_things()
 	
 		draw_trace_stuff()
@@ -1163,6 +1071,9 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 	step_callback = other.region_2d_xy.step_callback
 }
 
+#endregion
+
+#region trace stuff
 trace_boxes = ds_list_create()
 trace_x0 = 0
 trace_y0 = 0
@@ -1177,21 +1088,6 @@ trace_hit_z = 0
 trace_normal_x = 0
 trace_normal_y = 0
 trace_normal_z = 1
-
-function draw_2d_bkd (_region)
-{
-	draw_rectangle_color(
-		0, 0,
-		viewport_wide, viewport_tall,
-		//#15152d, #15152d,
-		//#23234b, #23234b,
-		//#23234b, #23234b,
-		//#53539f, #53539f,
-		c_dkgrey, c_dkgrey,
-		c_grey, c_grey,
-		false
-	)
-}
 
 function draw_trace_stuff ()
 {
@@ -1219,6 +1115,10 @@ function draw_trace_stuff ()
 	draw_primitive_end()
 }
 
+#endregion
+
+#region 3d cursor
+
 function draw_3d_cursor ()
 {
 	gpu_push_state()
@@ -1243,3 +1143,5 @@ cursor_3d_x = 0
 cursor_3d_y = 0
 cursor_3d_z = 0
 cursor_3d_display_radius = 0.5
+
+#endregion

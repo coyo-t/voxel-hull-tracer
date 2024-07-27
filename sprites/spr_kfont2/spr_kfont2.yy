@@ -279,8 +279,8 @@
   "nineSlice":null,
   "origin":0,
   "parent":{
-    "name":"tree dree trace",
-    "path":"tree dree trace.yyp",
+    "name":"sprites",
+    "path":"folders/sprites.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",

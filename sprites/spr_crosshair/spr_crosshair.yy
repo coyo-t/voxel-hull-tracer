@@ -26,8 +26,8 @@
   "nineSlice":null,
   "origin":9,
   "parent":{
-    "name":"tree dree trace",
-    "path":"tree dree trace.yyp",
+    "name":"sprites",
+    "path":"folders/sprites.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",

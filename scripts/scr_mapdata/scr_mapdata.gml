@@ -1,42 +1,8 @@
 
-function Block () constructor begin
-	static C = 0
-	
-	render_shapes = []
-	collision_shapes = []
-	
-	runtime_id = C++
-	
-	colour = c_white
-	
-	replacable = false
-	
-	static is = function (_to)
-	{
-		return runtime_id == _to.runtime_id
-	}
-end
 
-global.AIR = new Block()
-global.AIR.render_shapes = []
-global.AIR.collision_shapes = []
-global.AIR.replacable = true
 
-global.SOLID = new Block()
-global.SOLID.render_shapes = [{x0:0, y0:0, z0:0, x1:1, y1:1, z1:1}]
-global.SOLID.collision_shapes = global.SOLID.render_shapes
-global.SOLID.colour = c_ltgrey
 
-global.OUT_OF_BOUNDS = new Block()
-global.OUT_OF_BOUNDS.render_shapes = []
-global.OUT_OF_BOUNDS.collision_shapes = global.SOLID.render_shapes
-global.OUT_OF_BOUNDS.colour = c_dkgrey
-
-global.DIRT = new Block()
-global.DIRT.render_shapes = [{x0:0, y0:0, z0:0, x1:1, y1:1, z1:1}]
-global.DIRT.collision_shapes = global.SOLID.render_shapes
-global.DIRT.colour = c_orange
-
+global.__HIT_NORMAL = [0,0,0]
 function MapData (_xsize, _ysize, _zsize) constructor begin
 	
 	xsize = floor(_xsize)
@@ -44,7 +10,7 @@ function MapData (_xsize, _ysize, _zsize) constructor begin
 	zsize = floor(_zsize)
 	
 	count = xsize*ysize*zsize
-	data = array_create(xsize*ysize*zsize, global.AIR)
+	data = array_create(xsize*ysize*zsize, global.BLOCKS.AIR)
 	
 	static xytoi = function (_x, _y, _z)
 	{
@@ -64,9 +30,9 @@ function MapData (_xsize, _ysize, _zsize) constructor begin
 		}
 		if _z < 0
 		{
-			return global.OUT_OF_BOUNDS
+			return global.BLOCKS.OUT_OF_BOUNDS
 		}
-		return global.AIR
+		return global.BLOCKS.OUT_OF_BOUNDS_AIR
 	}
 	
 	static set = function (_x, _y, _z, _type)
@@ -146,9 +112,9 @@ function MapData (_xsize, _ysize, _zsize) constructor begin
 				: ((next_distance[2] < next_distance[1]) ? 2 : 1)
 			
 			// FIXME: icky hack!!!
-			Game.trace_normal_x = axis == 0 ? -step[0] : 0
-			Game.trace_normal_y = axis == 1 ? -step[1] : 0
-			Game.trace_normal_z = axis == 2 ? -step[2] : 0
+			global.__HIT_NORMAL[0] = axis == 0 ? -step[0] : 0
+			global.__HIT_NORMAL[1] = axis == 1 ? -step[1] : 0
+			global.__HIT_NORMAL[2] = axis == 2 ? -step[2] : 0
 			
 			
 			time = next_distance[axis]

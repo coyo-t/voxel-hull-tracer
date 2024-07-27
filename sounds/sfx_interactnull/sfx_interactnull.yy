@@ -12,8 +12,8 @@
   "duration":0.243991,
   "name":"sfx_interactnull",
   "parent":{
-    "name":"tree dree trace",
-    "path":"tree dree trace.yyp",
+    "name":"sounds",
+    "path":"folders/sounds.yy",
   },
   "preload":false,
   "resourceType":"GMSound",

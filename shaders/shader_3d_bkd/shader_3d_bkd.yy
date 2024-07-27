@@ -3,8 +3,8 @@
   "%Name":"shader_3d_bkd",
   "name":"shader_3d_bkd",
   "parent":{
-    "name":"tree dree trace",
-    "path":"tree dree trace.yyp",
+    "name":"shaders",
+    "path":"folders/shaders.yy",
   },
   "resourceType":"GMShader",
   "resourceVersion":"2.0",

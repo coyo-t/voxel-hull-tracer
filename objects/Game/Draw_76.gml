@@ -10,3 +10,11 @@ if ww <> room_width or wh <> room_height
 	recalculate_regions()
 }
 
+var c = cam
+
+c.recalculate_vectors()
+c.rebuild_matrices()
+audio_listener_position(c.x, c.y, c.z)
+audio_listener_orientation(c.forward_x, c.forward_y, c.forward_z, c.up_x, c.up_y, c.up_z)
+
+

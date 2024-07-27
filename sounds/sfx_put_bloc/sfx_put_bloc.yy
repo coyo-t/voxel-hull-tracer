@@ -12,8 +12,8 @@
   "duration":0.321667,
   "name":"sfx_put_bloc",
   "parent":{
-    "name":"sound",
-    "path":"folders/sound.yy",
+    "name":"sounds",
+    "path":"folders/sounds.yy",
   },
   "preload":false,
   "resourceType":"GMSound",
