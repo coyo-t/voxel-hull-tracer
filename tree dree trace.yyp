@@ -1,0 +1,48 @@
+{
+  "$GMProject":"",
+  "%Name":"tree dree trace",
+  "AudioGroups":[
+    {"$GMAudioGroup":"","%Name":"audiogroup_default","name":"audiogroup_default","resourceType":"GMAudioGroup","resourceVersion":"2.0","targets":-1,},
+  ],
+  "configs":{
+    "children":[],
+    "name":"Default",
+  },
+  "defaultScriptType":1,
+  "Folders":[
+    {"$GMFolder":"","%Name":"Extensions","folderPath":"folders/Extensions.yy","name":"Extensions","resourceType":"GMFolder","resourceVersion":"2.0",},
+  ],
+  "IncludedFiles":[
+    {"$GMIncludedFile":"","%Name":"ApolloHelp.html","CopyToMask":0,"filePath":"datafiles","name":"ApolloHelp.html","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
+    {"$GMIncludedFile":"","%Name":"blocs.lua","CopyToMask":-1,"filePath":"datafiles/scripts","name":"blocs.lua","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
+  ],
+  "isEcma":false,
+  "LibraryEmitters":[],
+  "MetaData":{
+    "IDEVersion":"2024.6.2.162",
+  },
+  "name":"tree dree trace",
+  "resources":[
+    {"id":{"name":"Apollo","path":"extensions/Apollo/Apollo.yy",},},
+    {"id":{"name":"Game","path":"objects/Game/Game.yy",},},
+    {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
+    {"id":{"name":"scr_bloc_model_builder","path":"scripts/scr_bloc_model_builder/scr_bloc_model_builder.yy",},},
+    {"id":{"name":"scr_draw","path":"scripts/scr_draw/scr_draw.yy",},},
+    {"id":{"name":"scr_mapdata","path":"scripts/scr_mapdata/scr_mapdata.yy",},},
+    {"id":{"name":"scr_matrix","path":"scripts/scr_matrix/scr_matrix.yy",},},
+    {"id":{"name":"scr_vec","path":"scripts/scr_vec/scr_vec.yy",},},
+    {"id":{"name":"spr_crosshair","path":"sprites/spr_crosshair/spr_crosshair.yy",},},
+    {"id":{"name":"spr_viewport_bezel","path":"sprites/spr_viewport_bezel/spr_viewport_bezel.yy",},},
+    {"id":{"name":"spr_viewport_focused_2","path":"sprites/spr_viewport_focused_2/spr_viewport_focused_2.yy",},},
+    {"id":{"name":"spr_viewport_focused","path":"sprites/spr_viewport_focused/spr_viewport_focused.yy",},},
+  ],
+  "resourceType":"GMProject",
+  "resourceVersion":"2.0",
+  "RoomOrderNodes":[
+    {"roomId":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
+  ],
+  "templateType":"game",
+  "TextureGroups":[
+    {"$GMTextureGroup":"","%Name":"Default","autocrop":true,"border":2,"compressFormat":"bz2","customOptions":"","directory":"","groupParent":null,"isScaled":true,"loadType":"default","mipsToGenerate":0,"name":"Default","resourceType":"GMTextureGroup","resourceVersion":"2.0","targets":-1,},
+  ],
+}
