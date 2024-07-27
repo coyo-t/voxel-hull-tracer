@@ -3,6 +3,10 @@
 
 
 global.__HIT_NORMAL = [0,0,0]
+global.__HIT_POINT  = [0,0,0]
+global.__HIT_TIME = 1
+global.__HIT_DISTANCE = 0
+global.__HIT_NORMALIZED = [0,0,0]
 function MapData (_xsize, _ysize, _zsize) constructor begin
 	
 	xsize = floor(_xsize)
@@ -97,6 +101,10 @@ function MapData (_xsize, _ysize, _zsize) constructor begin
 			next_distance[i] = (dp ? (cel[i] + 1 - ray_origin[i]) : (ray_origin[i] - cel[i])) * slope[i]
 		}
 		
+		global.__HIT_NORMALIZED[0] = normalized[0]
+		global.__HIT_NORMALIZED[1] = normalized[1]
+		global.__HIT_NORMALIZED[2] = normalized[2]
+		
 		var max_iter = calc_iter_count(ray_origin, ray_direction)
 
 		while (--max_iter) >= 0
@@ -111,13 +119,18 @@ function MapData (_xsize, _ysize, _zsize) constructor begin
 				? ((next_distance[2] < next_distance[0]) ? 2 : 0)
 				: ((next_distance[2] < next_distance[1]) ? 2 : 1)
 			
+			time = next_distance[axis]
+			
 			// FIXME: icky hack!!!
 			global.__HIT_NORMAL[0] = axis == 0 ? -step[0] : 0
 			global.__HIT_NORMAL[1] = axis == 1 ? -step[1] : 0
 			global.__HIT_NORMAL[2] = axis == 2 ? -step[2] : 0
+			global.__HIT_POINT[0] = ray_direction[0] * time + ray_origin[0]
+			global.__HIT_POINT[1] = ray_direction[1] * time + ray_origin[1]
+			global.__HIT_POINT[2] = ray_direction[2] * time + ray_origin[2]
+			global.__HIT_TIME = time
+			global.__HIT_DISTANCE = length * time
 			
-			
-			time = next_distance[axis]
 			next_distance[axis] += slope[axis]
 			cel[axis] += step[axis]
 		}

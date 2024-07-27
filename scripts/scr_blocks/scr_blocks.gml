@@ -132,7 +132,7 @@ global.BLOCKS = {
 		render_shapes = [rect_create(0, 0, 0, 1, 1, 1)]
 		collision_shapes = render_shapes
 		colour_2d = c_ltgrey
-		sprite = spr_grey_hull
+		sprite = spr_stone
 	}),
 	
 	DIRT: blocks_register("dirt", new Block(), function () {
@@ -140,6 +140,39 @@ global.BLOCKS = {
 		collision_shapes = render_shapes
 		colour_2d = c_orange
 		sprite = spr_dirt
+	}),
+	
+	PRECARIOUS: blocks_register("precarious", new Block(), function () {
+		var texel = 1/16
+		var r = texel*2
+		var sh = rect_create(
+			0.5-r,
+			0.5-r,
+			0,
+			0.5+r,
+			0.5+r,
+			1
+		)
+		var sh2 = rect_create_from(sh)
+		sh2.z1 = 1.5
+		
+		render_shapes = [sh]
+		collision_shapes = [sh2]
+		colour_2d = merge_colour(c_black, c_orange, 0.5)
+		sprite = spr_oak_planks
+	}),
+	
+	ROSE: blocks_register("rose", new Block(), function () {
+		var texel = 1/16
+		var cs = rect_create(texel*5, texel*5, 0, texel*11, texel*11, texel*8)
+		var rs = [
+			rect_create(0, 0.5, 0, 1, 0.5, 1),
+			rect_create(0.5, 0, 0, 0.5, 1, 1),
+		]
+		render_shapes = rs
+		collision_shapes = [cs]
+		sprite = spr_rose
+		colour_2d = c_red
 	}),
 }
 

@@ -21,7 +21,7 @@ function MapRenderer (_map) constructor begin
 					{
 						continue
 					}
-				
+
 					if not map.get(xx, yy, zz+1).is_full_block()
 					{
 						builder.add_top_face(thing, xx, yy, zz)
@@ -173,13 +173,6 @@ function MapModelBuilder () constructor begin
 	
 	static add_top_face = function (_type, _x, _y, _z)
 	{
-		var sh = _type.render_shapes[0]
-		var x0 = _x+sh.x0
-		var y0 = _y+sh.y0
-		var x1 = _x + sh.x1
-		var y1 = _y + sh.y1
-		_z += sh.z1
-		
 		var vv = get_tex_uvs(_type.sprite)
 		
 		var ux = cur_uvs[0]
@@ -187,32 +180,41 @@ function MapModelBuilder () constructor begin
 		var uw = cur_uvs[2]
 		var uh = cur_uvs[3]
 		
-		var u0 = sh.x0 * uw + ux
-		var v0 = sh.y0 * uh + uy
-		var u1 = sh.x1 * uw + ux
-		var v1 = sh.y1 * uh + uy
-		
+		var shapes = _type.render_shapes
 		set_cur_colour(_type.colour)
 		set_cur_shade(1.0)
 		
-		__addv(vv, x0, y1, _z, u0, v0)
-		__addv(vv, x1, y1, _z, u1, v0)
-		__addv(vv, x0, y0, _z, u0, v1)
+		for (var i = array_length(shapes); --i>=0;)
+		{
+			var sh = shapes[i]
+			if sh.x0 == sh.x1 or sh.y0 == sh.y1
+			{
+				continue
+			}
+			
+			var x0 = _x+sh.x0
+			var y0 = _y+sh.y0
+			var x1 = _x+sh.x1
+			var y1 = _y+sh.y1
+			var zz = _z+sh.z1
+		
+			var u0 = sh.x0 * uw + ux
+			var v0 = sh.y0 * uh + uy
+			var u1 = sh.x1 * uw + ux
+			var v1 = sh.y1 * uh + uy
+		
+			__addv(vv, x0, y1, zz, u0, v0)
+			__addv(vv, x1, y1, zz, u1, v0)
+			__addv(vv, x0, y0, zz, u0, v1)
 
-		__addv(vv, x1, y1, _z, u1, v0)
-		__addv(vv, x1, y0, _z, u1, v1)
-		__addv(vv, x0, y0, _z, u0, v1)
+			__addv(vv, x1, y1, zz, u1, v0)
+			__addv(vv, x1, y0, zz, u1, v1)
+			__addv(vv, x0, y0, zz, u0, v1)
+		}
 	}
 	
 	static add_bottom_face = function (_type, _x, _y, _z)
 	{
-		var sh = _type.render_shapes[0]
-		var x0 = _x+sh.x0
-		var y0 = _y+sh.y0
-		var x1 = _x + sh.x1
-		var y1 = _y + sh.y1
-		_z += sh.z0
-		
 		var vv = get_tex_uvs(_type.sprite)
 		
 		var ux = cur_uvs[0]
@@ -220,32 +222,44 @@ function MapModelBuilder () constructor begin
 		var uw = cur_uvs[2]
 		var uh = cur_uvs[3]
 		
-		var u0 = sh.x0 * uw + ux
-		var v0 = sh.y0 * uh + uy
-		var u1 = sh.x1 * uw + ux
-		var v1 = sh.y1 * uh + uy
-		
 		set_cur_colour(_type.colour)
 		set_cur_shade(0.5)
+
+		var shapes = _type.render_shapes
+		for (var i = array_length(shapes); --i>=0;)
+		{
+			var sh = shapes[i]
+			if sh.x0 == sh.x1 or sh.y0 == sh.y1
+			{
+				continue
+			}
+			
+			var x0 = _x+sh.x0
+			var y0 = _y+sh.y0
+			var x1 = _x + sh.x1
+			var y1 = _y + sh.y1
+			var zz = _z + sh.z0
 		
-		__addv(vv, x0, y0, _z, u0, v0)
-		__addv(vv, x1, y0, _z, u1, v0)
-		__addv(vv, x0, y1, _z, u0, v1)
+			var u0 = sh.x0 * uw + ux
+			var v0 = sh.y0 * uh + uy
+			var u1 = sh.x1 * uw + ux
+			var v1 = sh.y1 * uh + uy
 		
-		__addv(vv, x1, y0, _z, u1, v0)
-		__addv(vv, x1, y1, _z, u1, v1)
-		__addv(vv, x0, y1, _z, u0, v1)
+			__addv(vv, x0, y0, zz, u0, v0)
+			__addv(vv, x1, y0, zz, u1, v0)
+			__addv(vv, x0, y1, zz, u0, v1)
+		
+			__addv(vv, x1, y0, zz, u1, v0)
+			__addv(vv, x1, y1, zz, u1, v1)
+			__addv(vv, x0, y1, zz, u0, v1)
+		}
+		
+
 	}
 	
 	static add_south_face = function (_type, _x, _y, _z)
 	{
-		var sh = _type.render_shapes[0]
-		var x0 = _x+sh.x0
-		var z0 = _z+sh.z0
-		var x1 = _x + sh.x1
-		var z1 = _z + sh.z1
-		_y += sh.y0
-		
+
 		set_cur_colour(_type.colour)
 		set_cur_shade(0.6)
 		
@@ -255,116 +269,165 @@ function MapModelBuilder () constructor begin
 		var uy = cur_uvs[1]
 		var uw = cur_uvs[2]
 		var uh = cur_uvs[3]
+
+		var shapes = _type.render_shapes
+		for (var i = array_length(shapes); --i>=0;)
+		{
+			var sh = shapes[i]
+			
+			if sh.x0 == sh.x1 or sh.z0 == sh.z1
+			{
+				continue
+			}
+			
+			var x0 = _x+sh.x0
+			var z0 = _z+sh.z0
+			var x1 = _x + sh.x1
+			var z1 = _z + sh.z1
+			var yy = _y+ sh.y0
 		
-		var u0 = sh.x0 * uw + ux
-		var v0 = sh.z0 * uh + uy
-		var u1 = sh.x1 * uw + ux
-		var v1 = sh.z1 * uh + uy
+			var u0 = sh.x0 * uw + ux
+			var v0 = sh.z0 * uh + uy
+			var u1 = sh.x1 * uw + ux
+			var v1 = sh.z1 * uh + uy
 		
-		__addv(vv, x0, _y, z1, u0, v0)
-		__addv(vv, x1, _y, z1, u1, v0)
-		__addv(vv, x0, _y, z0, u0, v1)
+			__addv(vv, x0, yy, z1, u0, v0)
+			__addv(vv, x1, yy, z1, u1, v0)
+			__addv(vv, x0, yy, z0, u0, v1)
 		
-		__addv(vv, x1, _y, z1, u1, v0)
-		__addv(vv, x1, _y, z0, u1, v1)
-		__addv(vv, x0, _y, z0, u0, v1)
+			__addv(vv, x1, yy, z1, u1, v0)
+			__addv(vv, x1, yy, z0, u1, v1)
+			__addv(vv, x0, yy, z0, u0, v1)
+		}
 	}
 	
 	static add_north_face = function (_type, _x, _y, _z)
 	{
-		var sh = _type.render_shapes[0]
-		var x0 = _x+sh.x0
-		var z0 = _z+sh.z0
-		var x1 = _x + sh.x1
-		var z1 = _z + sh.z1
-		_y += sh.y1
-		
-		
-		var vv = get_tex_uvs(_type.sprite)
-		var ux = cur_uvs[0]
-		var uy = cur_uvs[1]
-		var uw = cur_uvs[2]
-		var uh = cur_uvs[3]
-		
-		var u0 = sh.x0 * uw + ux
-		var v0 = sh.z0 * uh + uy
-		var u1 = sh.x1 * uw + ux
-		var v1 = sh.z1 * uh + uy
 		
 		set_cur_colour(_type.colour)
 		set_cur_shade(0.6)
 		
-		__addv(vv, x1, _y, z1, u0, v0)
-		__addv(vv, x0, _y, z1, u1, v0)
-		__addv(vv, x1, _y, z0, u0, v1)
 		
-		__addv(vv, x0, _y, z1, u1, v0)
-		__addv(vv, x0, _y, z0, u1, v1)
-		__addv(vv, x1, _y, z0, u0, v1)
+		var vv = get_tex_uvs(_type.sprite)
+		var ux = cur_uvs[0]
+		var uy = cur_uvs[1]
+		var uw = cur_uvs[2]
+		var uh = cur_uvs[3]
+		
+		var shapes = _type.render_shapes
+		for (var i = array_length(shapes); --i>=0;)
+		{
+			var sh = shapes[i]
+			
+			if sh.x0 == sh.x1 or sh.z0 == sh.z1
+			{
+				continue
+			}
+			
+			var x0 = _x+sh.x0
+			var z0 = _z+sh.z0
+			var x1 = _x + sh.x1
+			var z1 = _z + sh.z1
+			var yy = _y + sh.y1
+		
+			var u0 = sh.x0 * uw + ux
+			var v0 = sh.z0 * uh + uy
+			var u1 = sh.x1 * uw + ux
+			var v1 = sh.z1 * uh + uy
+		
+			__addv(vv, x1, yy, z1, u0, v0)
+			__addv(vv, x0, yy, z1, u1, v0)
+			__addv(vv, x1, yy, z0, u0, v1)
+		
+			__addv(vv, x0, yy, z1, u1, v0)
+			__addv(vv, x0, yy, z0, u1, v1)
+			__addv(vv, x1, yy, z0, u0, v1)
+		}
 	}
 	
 	static add_east_face = function (_type, _x, _y, _z)
 	{
-		var sh = _type.render_shapes[0]
-		var y0 = _y+sh.y0
-		var y1 = _y + sh.y1
-		var z0 = _z+sh.z0
-		var z1 = _z + sh.z1
-		_x += sh.x1
-		
+		set_cur_colour(_type.colour)
+		set_cur_shade(0.8)
+	
 		var vv = get_tex_uvs(_type.sprite)
 		var ux = cur_uvs[0]
 		var uy = cur_uvs[1]
 		var uw = cur_uvs[2]
 		var uh = cur_uvs[3]
 		
-		var u0 = sh.y0 * uw + ux
-		var v0 = sh.z0 * uh + uy
-		var u1 = sh.y1 * uw + ux
-		var v1 = sh.z1 * uh + uy
+		var shapes = _type.render_shapes
+		for (var i = array_length(shapes); --i>=0;)
+		{
+			var sh = shapes[i]
+			
+			if sh.y0 == sh.y1 or sh.z0 == sh.z1
+			{
+				continue
+			}
+			
+			var y0 = _y+sh.y0
+			var y1 = _y + sh.y1
+			var z0 = _z+sh.z0
+			var z1 = _z + sh.z1
+			var xx = _x + sh.x1
+			var u0 = sh.y0 * uw + ux
+			var v0 = sh.z0 * uh + uy
+			var u1 = sh.y1 * uw + ux
+			var v1 = sh.z1 * uh + uy
 		
-		set_cur_colour(_type.colour)
-		set_cur_shade(0.8)
-		var vv = get_tex_uvs(_type.sprite)
-		__addv(vv, _x, y0, z1, u0, v0)
-		__addv(vv, _x, y1, z1, u1, v0)
-		__addv(vv, _x, y0, z0, u0, v1)
+			__addv(vv, xx, y0, z1, u0, v0)
+			__addv(vv, xx, y1, z1, u1, v0)
+			__addv(vv, xx, y0, z0, u0, v1)
 		
-		__addv(vv, _x, y1, z1, u1, v0)
-		__addv(vv, _x, y1, z0, u1, v1)
-		__addv(vv, _x, y0, z0, u0, v1)
+			__addv(vv, xx, y1, z1, u1, v0)
+			__addv(vv, xx, y1, z0, u1, v1)
+			__addv(vv, xx, y0, z0, u0, v1)
+		}
 	}
 	
 	static add_west_face = function (_type, _x, _y, _z)
 	{
-		var sh = _type.render_shapes[0]
-		var y0 = _y+sh.y0
-		var y1 = _y + sh.y1
-		var z0 = _z+sh.z0
-		var z1 = _z +sh.z1
-		_x += sh.x0
+		set_cur_colour(_type.colour)
+		set_cur_shade(0.8)
+		var vv = get_tex_uvs(_type.sprite)
+		
+
 		
 		var vv = get_tex_uvs(_type.sprite)
 		var ux = cur_uvs[0]
 		var uy = cur_uvs[1]
 		var uw = cur_uvs[2]
 		var uh = cur_uvs[3]
+
+		var shapes = _type.render_shapes
+		for (var i = array_length(shapes); --i>=0;)
+		{
+			var sh = shapes[i]
+			
+			if sh.y0 == sh.y1 or sh.z0 == sh.z1
+			{
+				continue
+			}
+			
+			var y0 = _y+sh.y0
+			var y1 = _y + sh.y1
+			var z0 = _z+sh.z0
+			var z1 = _z +sh.z1
+			var xx = _x + sh.x0
+			var u0 = sh.y0 * uw + ux
+			var v0 = sh.z0 * uh + uy
+			var u1 = sh.y1 * uw + ux
+			var v1 = sh.z1 * uh + uy
 		
-		var u0 = sh.y0 * uw + ux
-		var v0 = sh.z0 * uh + uy
-		var u1 = sh.y1 * uw + ux
-		var v1 = sh.z1 * uh + uy
+			__addv(vv, xx, y1, z1, u0, v0)
+			__addv(vv, xx, y0, z1, u1, v0)
+			__addv(vv, xx, y0, z0, u1, v1)
 		
-		set_cur_colour(_type.colour)
-		set_cur_shade(0.8)
-		var vv = get_tex_uvs(_type.sprite)
-		__addv(vv, _x, y1, z1, u0, v0)
-		__addv(vv, _x, y0, z1, u1, v0)
-		__addv(vv, _x, y0, z0, u1, v1)
-		
-		__addv(vv, _x, y1, z1, u0, v0)
-		__addv(vv, _x, y0, z0, u1, v1)
-		__addv(vv, _x, y1, z0, u0, v1)
+			__addv(vv, xx, y1, z1, u0, v0)
+			__addv(vv, xx, y0, z0, u1, v1)
+			__addv(vv, xx, y1, z0, u0, v1)
+		}
 		
 	}
 	

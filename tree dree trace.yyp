@@ -65,6 +65,7 @@
     {"id":{"name":"spr_viewport_bezel","path":"sprites/spr_viewport_bezel/spr_viewport_bezel.yy",},},
     {"id":{"name":"spr_viewport_focused","path":"sprites/spr_viewport_focused/spr_viewport_focused.yy",},},
     {"id":{"name":"tex_sky_ramp_dark_ice","path":"sprites/tex_sky_ramp_dark_ice/tex_sky_ramp_dark_ice.yy",},},
+    {"id":{"name":"tex_skyramp_simplegrey","path":"sprites/tex_skyramp_simplegrey/tex_skyramp_simplegrey.yy",},},
   ],
   "resourceType":"GMProject",
   "resourceVersion":"2.0",
