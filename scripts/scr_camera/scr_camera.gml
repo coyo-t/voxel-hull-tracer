@@ -60,6 +60,34 @@ function Camera () constructor begin
 		__matrix_calcd = true
 	}
 	
+	static turn_towards = function (_x, _y, _z)
+	{
+		__vectors_calcd = false
+		__matrix_calcd = false
+		
+		var xx = _x-x
+		var yy = _y-y
+		
+		yaw = darctan2(xx, yy)
+		pitch = darctan2(_z-z, sqrt(xx*xx+yy*yy))
+		
+		yaw += 180
+		
+		while yaw >= 360
+		{
+			yaw -= 360
+		}
+		
+		while yaw < 0
+		{
+			yaw += 360
+		}
+		yaw -= 180
+		
+		pitch = clamp(pitch, -90, +90)
+		recalculate_vectors()
+	}
+	
 	static turn = function (_dp, _dy)
 	{
 		if _dp == 0 and _dy == 0

@@ -2,31 +2,6 @@
 
 font_console = font_add_sprite(spr_kfont2, 1, false, 0)
 
-function Palette () constructor begin
-	
-	blocks = array_create(argument_count)
-	index = 0
-	
-	for (var i = argument_count; --i >= 0;)
-	{
-		blocks[i] = argument[i]
-	}
-	
-	static offset_index = function (_delta)
-	{
-		index += _delta
-		
-		var c = array_length(blocks)
-		
-		while index >= c { index -= c }
-		while index < 0  { index += c }
-	}
-	
-	static get_current = function ()
-	{
-		return blocks[index]
-	}
-end
 
 __NULL_REGION = new Region(0,0)
 
@@ -151,6 +126,8 @@ function invalidate_surface ()
 	}
 }
 
+view3d_show_hit_hull = false
+view3d_show_votv_cursor = false
 
 mouse = begin
 	x: 0,
@@ -474,7 +451,17 @@ with add_region("3d Viewport", new Region(0, 0))
 					
 					switch sss[0]
 					{
+						case "show_votv":
+							view3d_show_votv_cursor = array_length(sss) > 1 and sss[1] == "1"
+							break
+						case "show_hit_hulls":
+							view3d_show_hit_hull = array_length(sss) > 1 and sss[1] == "1"
+							break
+						case "face_3d_cursor":
+							cam.turn_towards(cursor_3d_x, cursor_3d_y, cursor_3d_z)
+							break
 						case "set":
+						{
 							try
 							{
 								var v1 = sss[1]
@@ -542,12 +529,7 @@ with add_region("3d Viewport", new Region(0, 0))
 								show_debug_message(_e)
 							}
 							break
-						case "palette":
-							_region.HUD_TXT = $"Current paint: {palette.get_current().name}"
-							break
-						case "help":
-							_region.HUD_TXT = "Sorry, I canno't help!\nthis is just a proof of concept! v_v\""
-							break
+						}
 						default:
 							_region.HUD_TXT = $"I dont know how to \"{sss[0]}\"!"
 							break
@@ -676,6 +658,7 @@ with add_region("3d Viewport", new Region(0, 0))
 		}
 		
 		ds_list_clear(trace_boxes)
+		trace_context.setup_endpoints(trace_x0, trace_y0, trace_z0, trace_x1, trace_y1, trace_z1)
 		trace_hit = map.trace_line(
 			trace_x0,
 			trace_y0,
@@ -685,16 +668,53 @@ with add_region("3d Viewport", new Region(0, 0))
 			trace_z1,
 			method(self, function (_x, _y, _z) {
 				ds_list_add(trace_boxes, vec_create(_x, _y, _z))
-				trace_hit_x = _x
-				trace_hit_y = _y
-				trace_hit_z = _z
-			
-				return array_length(map.get(_x, _y, _z).collision_shapes) > 0
+				
+				var shapes = map.get(_x, _y, _z).collision_shapes
+				var did = false
+				var nearest = infinity
+				
+				for (var i = array_length(shapes); --i >= 0;)
+				{
+					var shape = shapes[i]
+					
+					var x0 = shape.x0 + _x
+					var y0 = shape.y0 + _y
+					var z0 = shape.z0 + _z
+					var x1 = shape.x1 + _x
+					var y1 = shape.y1 + _y
+					var z1 = shape.z1 + _z
+					
+					if trace_context.test(x0, y0, z0, x1, y1, z1)
+					{
+						if trace_context.near_time < nearest
+						{
+							nearest = trace_context.near_time
+							rect_set_corners(trace_hit_hull, x0, y0, z0, x1, y1, z1)
+							did = true
+							
+							trace_hit_x = _x
+							trace_hit_y = _y
+							trace_hit_z = _z
+							trace_normal_x = trace_context.normal_x
+							trace_normal_y = trace_context.normal_y
+							trace_normal_z = trace_context.normal_z
+							trace_point_x = trace_context.hit_x
+							trace_point_y = trace_context.hit_y
+							trace_point_z = trace_context.hit_z
+							
+							
+							trace_hit_time = nearest
+						}
+					}
+				}
+				
+				//trace_hit |= did
+				return did
 			})
 		)
-		trace_normal_x = global.__HIT_NORMAL[0]
-		trace_normal_y = global.__HIT_NORMAL[1]
-		trace_normal_z = global.__HIT_NORMAL[2]
+		//trace_normal_x = global.__HIT_NORMAL[0]
+		//trace_normal_y = global.__HIT_NORMAL[1]
+		//trace_normal_z = global.__HIT_NORMAL[2]
 		
 		if region_has_focus(_region) and trace_hit
 		{
@@ -703,9 +723,9 @@ with add_region("3d Viewport", new Region(0, 0))
 			
 			if mouse_check_button_pressed(mb_middle)
 			{
-				cursor_3d_x = global.__HIT_POINT[0]
-				cursor_3d_y = global.__HIT_POINT[1]
-				cursor_3d_z = global.__HIT_POINT[2]
+				cursor_3d_x = trace_point_x
+				cursor_3d_y = trace_point_y
+				cursor_3d_z = trace_point_z
 			}
 			
 			var ox, oy, oz
@@ -774,20 +794,45 @@ with add_region("3d Viewport", new Region(0, 0))
 		BKD_OCT.submit(sprite_get_texture(tex_skyramp_simplegrey, 0))
 		shader_reset()
 		gpu_pop_state()
-	
+
 		draw_clear_depth(1)
 		gpu_set_ztestenable(true)
 		gpu_set_zwriteenable(true)
 		gpu_set_cullmode(cull_counterclockwise)
 		gpu_set_alphatestenable(true)
 
+		begin
+			var psh = sh_3d_infini_floor
+			shader_set(psh)
+			shader_set_uniform_f(shader_get_uniform(psh, "cofs"), c.x, c.y, c.z)
+			var spr = spr_dark_hull
+			var uvs = sprite_get_uvs(spr, 0)
+			var sz = 50
+			shader_set_uniform_f(shader_get_uniform(psh, "uvs"), uvs[0], uvs[1], uvs[2], uvs[3])
+			shader_set_uniform_f(shader_get_uniform(psh, "radius"), sz)
+
+			draw_primitive_begin_texture(pr_trianglefan, sprite_get_texture(spr, 0))
+			draw_vertex(-sz, +sz)
+			draw_vertex(+sz, +sz)
+			draw_vertex(+sz, -sz)
+			draw_vertex(-sz, -sz)
+		
+			draw_primitive_end()
+			shader_reset()
+		end
+		
 		matrix_pop(matrix_view)
+
+		
 		matrix_stack_push(cam_rot_mat)
 		matrix_stack_push(matrix_build(-c.x, -c.y, -c.z, 0,0,0, 1,1,1))
 		matrix_push(matrix_view, matrix_stack_top_clear())
-
+		
 		map_renderer.draw()
 		map_renderer.draw_world_axis()
+
+		var votv_ovrride = trace_hit and _region.action <> "TYPING" and keyboard_check(ord("Q")) and region_has_focus(_region)
+
 
 		if trace_hit
 		{
@@ -844,40 +889,61 @@ with add_region("3d Viewport", new Region(0, 0))
 					yy1+margin,
 					zz1+margin
 				)
+				
+				if view3d_show_votv_cursor or votv_ovrride
+				{
+					for (var j = 0b000; j <= 0b111; j++)
+					{
+						var xj = (j & 0b001) <> 0
+						var yj = (j & 0b010) <> 0
+						var zj = (j & 0b100) <> 0
+						var tf0 = matrix_transform_vertex(m, xj ? xx0 : xx1, yj ? yy0 : yy1, zj ? zz0 : zz1, 1)
+						var tf1 = matrix_transform_vertex(m, xj ? xx1 : xx0, yj ? yy1 : yy0, zj ? zz1 : zz0, 1)
+						var i0 = 1/tf0[2]
+						var i1 = 1/tf1[2]
+						var tx0 = tf0[0] * i0
+						var ty0 = tf0[1] * i0
+						var tx1 = tf1[0] * i1
+						var ty1 = tf1[1] * i1
+				
+						votv_box_x0 = min(votv_box_x0, min(tx0, tx1))
+						votv_box_y0 = min(votv_box_y0, min(ty0, ty1))
+						votv_box_x1 = max(votv_box_x1, max(tx1, tx0))
+						votv_box_y1 = max(votv_box_y1, max(ty1, ty0))
+					}
+				}
 			}
 			draw_primitive_end()
 			
-			begin
-				var shape = type.collision_bounding_box
-				var xx0 = tx + shape.x0
-				var yy0 = ty + shape.y0
-				var zz0 = tz + shape.z0
-				var xx1 = tx + shape.x1
-				var yy1 = ty + shape.y1
-				var zz1 = tz + shape.z1
-				for (var j = 0b000; j <= 0b111; j++)
-				{
-					var xj = (j & 0b001) <> 0
-					var yj = (j & 0b010) <> 0
-					var zj = (j & 0b100) <> 0
-					var tf0 = matrix_transform_vertex(m, xj ? xx0 : xx1, yj ? yy0 : yy1, zj ? zz0 : zz1, 1)
-					var tf1 = matrix_transform_vertex(m, xj ? xx1 : xx0, yj ? yy1 : yy0, zj ? zz1 : zz0, 1)
-					var i0 = 1/tf0[2]
-					var i1 = 1/tf1[2]
-					var tx0 = tf0[0] * i0
-					var ty0 = tf0[1] * i0
-					var tx1 = tf1[0] * i1
-					var ty1 = tf1[1] * i1
-				
-					votv_box_x0 = min(votv_box_x0, min(tx0, tx1))
-					votv_box_y0 = min(votv_box_y0, min(ty0, ty1))
-					votv_box_x1 = max(votv_box_x1, max(tx1, tx0))
-					votv_box_y1 = max(votv_box_y1, max(ty1, ty0))
-				}
-			end
 			draw_set_color(c_white)
 			draw_set_alpha(1)
 			gpu_pop_state()
+			
+			if view3d_show_hit_hull begin
+				var fuck = 0.01 + pulse
+				draw_primitive_begin(pr_linelist)
+				draw_set_color(c_yellow)
+				corners_linelist(
+					trace_hit_hull.x0-fuck, trace_hit_hull.y0-fuck, trace_hit_hull.z0-fuck,
+					trace_hit_hull.x1+fuck, trace_hit_hull.y1+fuck, trace_hit_hull.z1+fuck
+				)
+				draw_primitive_end()
+				draw_set_color(c_white)
+				
+				draw_primitive_begin(pr_linelist)
+				
+				var hx0 = trace_point_x
+				var hy0 = trace_point_y
+				var hz0 = trace_point_z
+				var hx1 = hx0 + trace_normal_x
+				var hy1 = hy0 + trace_normal_y
+				var hz1 = hz0 + trace_normal_z
+				
+				draw_vertex_3d(hx0, hy0, hz0)
+				draw_vertex_3d(hx1, hy1, hz1)
+				
+				draw_primitive_end()
+			end
 		}
 	
 		draw_3d_cursor()
@@ -929,7 +995,7 @@ with add_region("3d Viewport", new Region(0, 0))
 			draw_set_valign(fa_bottom)
 			draw_set_font(font_console)
 			var blink = ((get_timer() * 2 / 1000000) & 1) == 0 ? "_" : " "
-			var t = $"Enter Command :]\n==> {keyboard_string}{blink}"
+			var t = $"==> {keyboard_string}{blink}"
 			draw_set_color(c_black)
 			var chw = string_width("A")
 			var chh = string_height("A")
@@ -973,7 +1039,7 @@ with add_region("3d Viewport", new Region(0, 0))
 		
 		matrix_pop(matrix_world)
 		
-		if trace_hit
+		if votv_ovrride or (view3d_show_votv_cursor and trace_hit)
 		{
 			var spr = spr_votv_sel_box
 
@@ -1369,6 +1435,9 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 #endregion
 
 #region trace stuff
+
+trace_context = new RayRectContext()
+
 trace_boxes = ds_list_create()
 trace_x0 = 0
 trace_y0 = 0
@@ -1377,12 +1446,17 @@ trace_x1 = 0
 trace_y1 = 0
 trace_z1 = 0
 trace_hit = false
+trace_hit_time = 1
 trace_hit_x = 0
 trace_hit_y = 0
 trace_hit_z = 0
 trace_normal_x = 0
 trace_normal_y = 0
 trace_normal_z = 1
+trace_point_x = 0
+trace_point_y = 0
+trace_point_z = 0
+trace_hit_hull = rect_create()
 
 function draw_trace_stuff ()
 {

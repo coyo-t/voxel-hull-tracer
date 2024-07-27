@@ -10,7 +10,7 @@ function MapRenderer (_map) constructor begin
 			return
 		}
 		builder.begin_building()
-		for (var zz = -1; zz < map.zsize; zz++)
+		for (var zz = 0; zz < map.zsize; zz++)
 		{
 			for (var yy = 0; yy < map.ysize; yy++)
 			{

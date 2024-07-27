@@ -1,0 +1,12 @@
+{
+  "$GMShader":"",
+  "%Name":"sh_3d_infini_floor",
+  "name":"sh_3d_infini_floor",
+  "parent":{
+    "name":"shaders",
+    "path":"folders/shaders.yy",
+  },
+  "resourceType":"GMShader",
+  "resourceVersion":"2.0",
+  "type":1,
+}
