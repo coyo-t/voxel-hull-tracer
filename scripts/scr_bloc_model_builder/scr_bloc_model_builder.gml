@@ -22,32 +22,32 @@ function MapRenderer (_map) constructor begin
 						continue
 					}
 
-					if not map.get(xx, yy, zz+1).is_full_block()
+					if thing.should_submit_face(map, xx, yy, zz+1)
 					{
 						builder.add_top_face(thing, xx, yy, zz)
 					}
 				
-					if not map.get(xx, yy, zz-1).is_full_block()
+					if thing.should_submit_face(map, xx, yy, zz-1)
 					{
 						builder.add_bottom_face(thing, xx, yy, zz)
 					}
 				
-					if not map.get(xx, yy+1, zz).is_full_block()
+					if thing.should_submit_face(map, xx, yy+1, zz)
 					{
 						builder.add_north_face(thing, xx, yy, zz)
 					}
 				
-					if not map.get(xx, yy-1, zz).is_full_block()
+					if thing.should_submit_face(map, xx, yy-1, zz)
 					{
 						builder.add_south_face(thing, xx, yy, zz)
 					}
 				
-					if not map.get(xx+1, yy, zz).is_full_block()
+					if thing.should_submit_face(map, xx+1, yy, zz)
 					{
 						builder.add_east_face(thing, xx, yy, zz)
 					}
 				
-					if not map.get(xx-1, yy, zz).is_full_block()
+					if thing.should_submit_face(map, xx-1, yy, zz)
 					{
 						builder.add_west_face(thing, xx, yy, zz)
 					}

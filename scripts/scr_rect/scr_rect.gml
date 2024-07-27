@@ -16,3 +16,14 @@ function rect_create_from (_r)
 {
 	return rect_create(_r.x0, _r.y0, _r.z0, _r.x1, _r.y1, _r.z1)
 }
+
+function rect_expand_corners_to (_self, _to)
+{
+	_self.x0 = min(_self.x0, _to.x0)
+	_self.y0 = min(_self.y0, _to.y0)
+	_self.z0 = min(_self.z0, _to.z0)
+	_self.x1 = max(_self.x1, _to.x1)
+	_self.y1 = max(_self.y1, _to.y1)
+	_self.z1 = max(_self.z1, _to.z1)
+	return _self
+}

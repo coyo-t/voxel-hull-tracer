@@ -37,6 +37,13 @@ function BlockRegistry () constructor begin
 			}
 			
 			var sh = bloc.collision_shapes
+			
+			var bb = bloc.collision_bounding_box
+			for (var j = array_length(sh); --j>=0;)
+			{
+				rect_expand_corners_to(bb, sh[j])
+			}
+			
 			switch array_length(sh)
 			{
 				case 0:
@@ -55,6 +62,9 @@ function BlockRegistry () constructor begin
 					break
 				}
 			}
+			
+	
+			
 		}
 		gc_collect()
 	}
@@ -88,6 +98,11 @@ function Block () constructor begin
 	render_shapes = []
 	collision_shapes = []
 	
+	collision_bounding_box = rect_create(
+		+infinity,+infinity,+infinity,
+		-infinity,-infinity,-infinity
+	)
+	
 	runtime_id = -1
 	name = "NONE"
 	
@@ -96,6 +111,8 @@ function Block () constructor begin
 	replacable = false
 	
 	sprite = spr_terrain__2_
+	
+	opaque = true
 	
 	static is = function (_to)
 	{
@@ -106,14 +123,33 @@ function Block () constructor begin
 	{
 		return global.BLOCK_REGISTRY._full_blocs[runtime_id]
 	}
+	
+	static should_submit_face = function (_map, _x, _y, _z)
+	{
+		return not _map.get(_x, _y, _z).opaque
+	}
 end
 
+function GlassBlock () : Block() constructor begin
+	opaque = false
+	
+	static should_submit_face = function (_map, _x, _y, _z)
+	{
+		var what = _map.get(_x, _y, _z)
+		if is(what)
+		{
+			return false
+		}
+		return not what.opaque
+	}
+end
 
 global.BLOCKS = {
 	AIR: blocks_register("air", new Block(), function () {
 		render_shapes = []
 		collision_shapes = []
 		replacable = true
+		opaque = false
 	}),
 	OUT_OF_BOUNDS: blocks_register("out_of_bounds", new Block(), function () {
 		collision_shapes = [rect_create(0, 0, 0, 1, 1, 1)]
@@ -126,6 +162,7 @@ global.BLOCKS = {
 		render_shapes = []
 		collision_shapes = []
 		replacable = true
+		opaque = false
 	}),
 	
 	SOLID: blocks_register("solid", new Block(), function () {
@@ -160,6 +197,7 @@ global.BLOCKS = {
 		collision_shapes = [sh2]
 		colour_2d = merge_colour(c_black, c_orange, 0.5)
 		sprite = spr_oak_planks
+		opaque = false
 	}),
 	
 	ROSE: blocks_register("rose", new Block(), function () {
@@ -173,6 +211,26 @@ global.BLOCKS = {
 		collision_shapes = [cs]
 		sprite = spr_rose
 		colour_2d = c_red
+		opaque = false
+	}),
+	
+	COBBLESTONE_STAIRS: blocks_register("cobblestone_stairs", new Block(), function () {
+		var sh = [
+			rect_create(0, 0, 0, 1, 1, 0.5),
+			rect_create(0, 0, 0.5, 1, 0.5, 1)
+		]
+		render_shapes = sh
+		collision_shapes = sh
+		sprite = spr_cobblestone
+		colour_2d = c_dkgrey
+		opaque = false
+	}),
+	
+	GLASS: blocks_register("glass", new GlassBlock(), function () {
+		render_shapes = [rect_create(0,0,0,1,1,1)]
+		collision_shapes = render_shapes
+		sprite = spr_glass
+		colour_2d = c_aqua
 	}),
 }
 

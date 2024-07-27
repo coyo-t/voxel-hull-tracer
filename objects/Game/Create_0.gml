@@ -57,6 +57,8 @@ palette = new Palette(
 	global.BLOCKS.SOLID,
 	global.BLOCKS.PRECARIOUS,
 	global.BLOCKS.ROSE,
+	global.BLOCKS.COBBLESTONE_STAIRS,
+	global.BLOCKS.GLASS,
 )
 
 viewport_surf = -1 
@@ -437,6 +439,11 @@ function draw_camera_bauble ()
 
 var BASE_ZOOM_2D = 20
 
+votv_box_x0 = 0
+votv_box_y0 = 0
+votv_box_x1 = 0
+votv_box_y1 = 0
+
 #region regions themselves
 
 with add_region("3d Viewport", new Region(0, 0))
@@ -463,28 +470,86 @@ with add_region("3d Viewport", new Region(0, 0))
 				else if keyboard_check_pressed(vk_enter)
 				{
 					do_quit = true
-					switch string_trim(string_lower(keyboard_string))
+					var sss = string_split(string_trim(string_lower(keyboard_string)), " ", true)
+					
+					switch sss[0]
 					{
+						case "set":
+							try
+							{
+								var v1 = sss[1]
+								var sx = 0
+								var sy = 0
+								var sz = 0
+								var bloc = undefined
+								var should = false
+								if string_starts_with(v1, "@")
+								{
+									if v1 == "@cursor"
+									{
+										sx = floor(cursor_3d_x)
+										sy = floor(cursor_3d_y)
+										sz = floor(cursor_3d_z)
+										bloc = sss[2]
+										should = true
+									}
+									else if v1 == "@camera"
+									{
+										sx = floor(cam.x)
+										sy = floor(cam.y)
+										sz = floor(cam.z-1)
+										bloc = sss[2]
+										should = true
+									}
+								}
+								else
+								{
+									sx = floor(real(sss[1]))
+									sy = floor(real(sss[2]))
+									sz = floor(real(sss[3]))
+									bloc = sss[4]
+									should = true
+								}
+								
+								if should
+								{
+									var b = blocks_get_by_name(bloc)
+									if b == undefined
+									{
+										_region.HUD_TXT = $"Couldn't set block, \"{bloc}\" is undefined! x_x"
+									}
+									else
+									{
+										if map.set(sx, sy, sz, b)
+										{
+											map_renderer.built = false
+											_region.HUD_TXT = $"Block changed to \"{bloc}\". ovo"
+										}
+										else
+										{
+											_region.HUD_TXT = "No change occured! ovo\""
+										}
+									}
+								}
+								else
+								{
+									_region.HUD_TXT = "Coouldn't set block for some reason! x_x"
+								}
+							}
+							catch (_e)
+							{
+								_region.HUD_TXT = $"Couldn't set block, an exeption occured!!!\n{_e}"
+								show_debug_message(_e)
+							}
+							break
 						case "palette":
 							_region.HUD_TXT = $"Current paint: {palette.get_current().name}"
-							break
-						case "fuck":
-						case "no":
-							_region.HUD_TXT = "RUDE >:["
-							break
-						case "reset angles":
-							_region.HUD_TXT = "Okay! ovo"
-							cam.yaw = 0
-							cam.pitch = 0
-							break
-						case "pod people":
-							_region.HUD_TXT = "HAHA, WOW!!!"
 							break
 						case "help":
 							_region.HUD_TXT = "Sorry, I canno't help!\nthis is just a proof of concept! v_v\""
 							break
 						default:
-							_region.HUD_TXT = $"I dont know how to \"{keyboard_string}\""
+							_region.HUD_TXT = $"I dont know how to \"{sss[0]}\"!"
 							break
 					}
 				}
@@ -635,7 +700,14 @@ with add_region("3d Viewport", new Region(0, 0))
 		{
 			var any_change = false
 			var m = 0
-		
+			
+			if mouse_check_button_pressed(mb_middle)
+			{
+				cursor_3d_x = global.__HIT_POINT[0]
+				cursor_3d_y = global.__HIT_POINT[1]
+				cursor_3d_z = global.__HIT_POINT[2]
+			}
+			
 			var ox, oy, oz
 			if mouse_check_button_pressed(mb_left)
 			{
@@ -735,398 +807,74 @@ with add_region("3d Viewport", new Region(0, 0))
 			gpu_set_blendequation(bm_eq_subtract)
 			var time = get_timer()/1000000
 		
-			var vdist = sqrt(power(trace_hit_x-(c.x), 2)+power(trace_hit_y-(c.y), 2)+power(trace_hit_z-(c.z), 2))
-		
 			var pulse = (sin(time * pi * 4) * 0.5 + 0.5) * (0.25/16)
-			var margin = 0.001 * vdist //0.005
+			var margin = 0.004
 			var minofs = margin
 			var maxofs = 1 + minofs
-		
 			
-		
-			var x0 = trace_hit_x - minofs + hitn_x
-			var y0 = trace_hit_y - minofs + hitn_y
-			var z0 = trace_hit_z - minofs + hitn_z
-			var x1 = trace_hit_x + maxofs + hitn_x
-			var y1 = trace_hit_y + maxofs + hitn_y
-			var z1 = trace_hit_z + maxofs + hitn_z
+			var type = map.get(trace_hit_x, trace_hit_y, trace_hit_z)
+			var shapes = type.collision_shapes
 			
-			var ox0 = x0 - margin
-			var oy0 = y0 - margin
-			var oz0 = z0 - margin
-			var ox1 = x1 + margin
-			var oy1 = y1 + margin
-			var oz1 = z1 + margin
+			var tx = trace_hit_x
+			var ty = trace_hit_y
+			var tz = trace_hit_z
 			
-			var th = (vdist/viewport_wide)/16
-			var ix0 = ox0 + th + margin*2
-			var iy0 = oy0 + th + margin*2
-			var iz0 = oz0 + th + margin*2
-			var ix1 = ox1 - th - margin*2
-			var iy1 = oy1 - th - margin*2
-			var iz1 = oz1 - th - margin*2
+			var m = matrix_multiply(matrix_get(matrix_view), matrix_get(matrix_projection))
 			
-			var top_bot_d = dot_product_3d(c.forward_x, c.forward_y, c.forward_z, 0, 0, 1)
+			votv_box_x0 = infinity
+			votv_box_y0 = infinity
+			votv_box_x1 = -infinity
+			votv_box_y1 = -infinity
 			
-			var north_south_d = dot_product_3d(c.forward_x, c.forward_y, c.forward_z, 0, 1, 0)
-			
-			var east_west_d = dot_product_3d(c.forward_x, c.forward_y, c.forward_z, 1, 0, 0)
-			
-			gpu_push_state()
-			gpu_set_stencil_enable(true)
-			gpu_set_stencil_write_mask(0xFF)
-
-			
-			gpu_set_stencil_ref(1)
-			draw_clear_stencil(0)
-
-			gpu_set_stencil_pass(stencilop_replace)
-			gpu_set_stencil_fail(stencilop_replace)
-			gpu_set_stencil_func(cmpfunc_always)
-			
-			begin // inner
-				draw_primitive_begin(pr_trianglelist)
-				// inner top
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ix1, iy0, oz1)
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ix0, iy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix0, iy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ix0, iy1, oz1)
-				draw_vertex_3d(ix1, iy1, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ix1, iy0, oz1)
-				draw_vertex_3d(ix1, iy1, oz1)
-				draw_vertex_3d(ix1, iy0, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				// inner bottom
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ix1, iy0, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ix0, iy1, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix0, iy1, oz0)
-				draw_vertex_3d(ix0, iy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix1, iy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ix1, iy0, oz0)
-				draw_vertex_3d(ix1, iy0, oz0)
-				draw_vertex_3d(ix1, iy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				// inner south
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ix0, oy0, iz0)
-				draw_vertex_3d(ix1, oy0, iz0)
-				draw_vertex_3d(ix0, oy0, iz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ix1, oy0, iz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ix0, oy0, iz1)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ix0, oy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ix0, oy0, iz0)
-				draw_vertex_3d(ix0, oy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz0)
-				// inner north
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ix0, oy1, iz0)
-				draw_vertex_3d(ix0, oy1, iz0)
-				draw_vertex_3d(ix1, oy1, iz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix1, oy1, iz0)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ix0, oy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix0, oy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ix0, oy1, iz1)
-				draw_vertex_3d(ix0, oy1, iz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				// inner east
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, iy0, iz0)
-				draw_vertex_3d(ox1, iy1, iz0)
-				draw_vertex_3d(ox1, iy0, iz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, iy1, iz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, iy0, iz1)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, iy0, iz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox1, iy0, iz0)
-				draw_vertex_3d(ox1, iy0, iz1)
-				draw_vertex_3d(ox1, oy0, oz0)
-				// inner west
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ox0, iy0, iz0)
-				draw_vertex_3d(ox0, iy0, iz0)
-				draw_vertex_3d(ox0, iy1, iz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, iy1, iz0)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, iy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, iy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ox0, iy0, iz1)
-				draw_vertex_3d(ox0, iy0, iz0)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_primitive_end()
-			end
-			
-			gpu_set_stencil_pass(stencilop_keep)
-			gpu_set_stencil_fail(stencilop_keep)
-			gpu_set_stencil_func(cmpfunc_greaterequal)
-			gpu_set_stencil_ref(0)
-			gpu_set_stencil_write_mask(0)
-			
-			draw_primitive_begin(pr_trianglelist)
-			// outer top
-			if top_bot_d <= 0
+			draw_primitive_begin(pr_linelist)
+			for (var i = array_length(shapes); --i >= 0;)
 			{
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ix1, iy0, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ix0, iy0, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix0, iy1, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ix0, iy1, oz1)
-				draw_vertex_3d(ix0, iy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ix1, iy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ix1, iy0, oz1)
-				draw_vertex_3d(ix1, iy0, oz1)
-				draw_vertex_3d(ix1, iy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
+				var shape = shapes[i]
+				var xx0 = tx + shape.x0
+				var yy0 = ty + shape.y0
+				var zz0 = tz + shape.z0
+				var xx1 = tx + shape.x1
+				var yy1 = ty + shape.y1
+				var zz1 = tz + shape.z1
+				corners_linelist(
+					xx0-margin,
+					yy0-margin,
+					zz0-margin,
+					xx1+margin,
+					yy1+margin,
+					zz1+margin
+				)
 			}
-
-			
-			// outer bottom
-			if top_bot_d >= 0
-			{
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ix1, iy0, oz0)
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ix0, iy0, oz0)
-				draw_vertex_3d(ix0, iy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ix0, iy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix0, iy1, oz0)
-				draw_vertex_3d(ix1, iy1, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix1, iy0, oz0)
-				draw_vertex_3d(ix1, iy1, oz0)
-				draw_vertex_3d(ix1, iy0, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-			}
-
-			
-			// outer south
-			if north_south_d >= 0
-			{
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ix0, oy0, iz0)
-				draw_vertex_3d(ix0, oy0, iz0)
-				draw_vertex_3d(ix1, oy0, iz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ix1, oy0, iz0)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ix0, oy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ix1, oy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ix0, oy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ix0, oy0, iz1)
-				draw_vertex_3d(ix0, oy0, iz0)
-				draw_vertex_3d(ox0, oy0, oz0)
-			}
-
-			
-			// outer north
-			if north_south_d <= 0
-			{
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix0, oy1, iz0)
-				draw_vertex_3d(ix1, oy1, iz0)
-				draw_vertex_3d(ix0, oy1, iz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix1, oy1, iz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ix0, oy1, iz1)
-				draw_vertex_3d(ix1, oy1, iz1)
-				draw_vertex_3d(ix0, oy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ix0, oy1, iz0)
-				draw_vertex_3d(ix0, oy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz0)
-			}
-			
-			// outer east
-			if east_west_d <= 0
-			{
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox1, iy0, iz0)
-				draw_vertex_3d(ox1, iy0, iz0)
-				draw_vertex_3d(ox1, iy1, iz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, iy1, iz0)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox1, oy1, oz0)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, oy1, oz1)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, iy0, iz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, iy1, iz1)
-				draw_vertex_3d(ox1, oy0, oz1)
-				draw_vertex_3d(ox1, iy0, iz1)
-				draw_vertex_3d(ox1, oy0, oz0)
-				draw_vertex_3d(ox1, iy0, iz1)
-				draw_vertex_3d(ox1, iy0, iz0)
-				draw_vertex_3d(ox1, oy0, oz0)
-			}
-			
-			// outer west
-			if east_west_d > 0
-			{
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, iy0, iz0)
-				draw_vertex_3d(ox0, iy1, iz0)
-				draw_vertex_3d(ox0, iy0, iz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, iy1, iz0)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, oy1, oz0)
-				draw_vertex_3d(ox0, oy1, oz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, iy0, iz1)
-				draw_vertex_3d(ox0, iy1, iz1)
-				draw_vertex_3d(ox0, iy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz1)
-				draw_vertex_3d(ox0, oy0, oz0)
-				draw_vertex_3d(ox0, iy0, iz0)
-				draw_vertex_3d(ox0, iy0, iz1)
-				draw_vertex_3d(ox0, oy0, oz0)
-			}
-			
 			draw_primitive_end()
-
-			gpu_pop_state()
-
+			
+			begin
+				var shape = type.collision_bounding_box
+				var xx0 = tx + shape.x0
+				var yy0 = ty + shape.y0
+				var zz0 = tz + shape.z0
+				var xx1 = tx + shape.x1
+				var yy1 = ty + shape.y1
+				var zz1 = tz + shape.z1
+				for (var j = 0b000; j <= 0b111; j++)
+				{
+					var xj = (j & 0b001) <> 0
+					var yj = (j & 0b010) <> 0
+					var zj = (j & 0b100) <> 0
+					var tf0 = matrix_transform_vertex(m, xj ? xx0 : xx1, yj ? yy0 : yy1, zj ? zz0 : zz1, 1)
+					var tf1 = matrix_transform_vertex(m, xj ? xx1 : xx0, yj ? yy1 : yy0, zj ? zz1 : zz0, 1)
+					var i0 = 1/tf0[2]
+					var i1 = 1/tf1[2]
+					var tx0 = tf0[0] * i0
+					var ty0 = tf0[1] * i0
+					var tx1 = tf1[0] * i1
+					var ty1 = tf1[1] * i1
+				
+					votv_box_x0 = min(votv_box_x0, min(tx0, tx1))
+					votv_box_y0 = min(votv_box_y0, min(ty0, ty1))
+					votv_box_x1 = max(votv_box_x1, max(tx1, tx0))
+					votv_box_y1 = max(votv_box_y1, max(ty1, ty0))
+				}
+			end
 			draw_set_color(c_white)
 			draw_set_alpha(1)
 			gpu_pop_state()
@@ -1141,11 +889,6 @@ with add_region("3d Viewport", new Region(0, 0))
 		gpu_pop_state()
 
 		draw_clear_depth(1)
-
-		if _region.HUD_TXT == "HAHA, WOW!!!"
-		{
-			draw_sprite_stretched(spr_the_pod_people_trumpy, 0, 0, 0, viewport_wide, viewport_tall)
-		}
 
 		var fa = draw_get_halign()
 		var va = draw_get_valign()
@@ -1185,8 +928,16 @@ with add_region("3d Viewport", new Region(0, 0))
 			draw_set_halign(fa_left)
 			draw_set_valign(fa_bottom)
 			draw_set_font(font_console)
-			var blink = ((get_timer() * 2 / 1000000) & 1) == 0 ? "==> " : "    "
-			draw_text(16, viewport_tall-16, $"Enter Command :]\n{blink}{keyboard_string}")
+			var blink = ((get_timer() * 2 / 1000000) & 1) == 0 ? "_" : " "
+			var t = $"Enter Command :]\n==> {keyboard_string}{blink}"
+			draw_set_color(c_black)
+			var chw = string_width("A")
+			var chh = string_height("A")
+			var tw = string_width(t) + chw
+			var th = string_height(t) + chh
+			draw_rectangle(0, viewport_tall-16-th, 16+tw, viewport_tall, false)
+			draw_set_color(c_yellow)
+			draw_text(16, viewport_tall-16, t)
 			draw_set_font(-1)
 			
 		}
@@ -1195,7 +946,7 @@ with add_region("3d Viewport", new Region(0, 0))
 		draw_set_halign(fa)
 		draw_set_valign(va)
 		
-		var scale = min(ceil(viewport_wide / 320), ceil(viewport_tall / 240))
+		var scale = max(min(ceil(viewport_wide / 320), ceil(viewport_tall / 240)), 1)
 		
 		var pal = palette.get_current()
 		
@@ -1222,6 +973,85 @@ with add_region("3d Viewport", new Region(0, 0))
 		
 		matrix_pop(matrix_world)
 		
+		if trace_hit
+		{
+			var spr = spr_votv_sel_box
+
+			var vx0 = (+votv_box_x0*0.5+0.5)*viewport_wide
+			var vy0 = (-votv_box_y0*0.5+0.5)*viewport_tall
+			var vx1 = (+votv_box_x1*0.5+0.5)*viewport_wide
+			var vy1 = (-votv_box_y1*0.5+0.5)*viewport_tall
+			var tmp = vx0
+			vx0 = min(tmp, vx1)
+			vx1 = max(tmp, vx1)
+			tmp = vy0
+			vy0 = min(tmp, vy1)
+			vy1 = max(tmp, vy1)
+			
+			vx0 -= sprite_get_bbox_left(spr)
+			vy0 -= sprite_get_bbox_top(spr)
+			vx1 += sprite_get_width(spr)-sprite_get_bbox_right(spr)
+			vy1 += sprite_get_height(spr)-sprite_get_bbox_bottom(spr)
+			
+			var vw = floor(abs(vx1-vx0))
+			var vh = floor(abs(vy1-vy0))
+			vx0 = floor(vx0)
+			vy0 = floor(vy0)
+			vx1 = floor(vx1)
+			vy1 = floor(vy1)
+			
+			draw_sprite_stretched(spr, 0, vx0, vy0, vw, vh)
+			
+			draw_set_font(font_console)
+			var votvtext = string_join("\n",
+				map.get(trace_hit_x, trace_hit_y, trace_hit_z).name,
+				$"@{trace_hit_x}, {trace_hit_y}, {trace_hit_z}",
+			)
+			var fh = draw_get_halign()
+			var fv = draw_get_valign()
+			var strw = string_width(votvtext)
+			var strh = string_height(votvtext)
+			
+			var sx0 = vx0+vw
+			var sy0 = vy0
+			var sx1 = vx0+vw+strw
+			var sy1 = vy0+strh
+			
+			if sy0 < 0
+			{
+				sy0 = vy0+vh-strh
+				sy1 = vy0+vh
+			}
+			
+			if sx1 > viewport_wide
+			{
+				sx0 = vx0-strw
+				sx1 = vx0
+			}
+			
+			draw_set_color(c_black)
+			draw_primitive_begin(pr_trianglefan)
+			draw_vertex(sx0, sy0)
+			draw_vertex(sx1, sy0)
+			draw_vertex(sx1, sy1)
+			draw_vertex(sx0, sy1)
+			draw_primitive_end()
+			draw_set_color(c_yellow)
+			draw_text(sx0, sy0, votvtext)
+			
+			draw_set_font(-1)
+			draw_set_color(c_white)
+			draw_set_halign(fh)
+			draw_set_valign(fv)
+		}
+		
+		if cursor_3d_should_draw
+		{
+			var c3d_x = (+cursor_3d_draw_x * 0.5 + 0.5) * viewport_wide
+			var c3d_y = (-cursor_3d_draw_y * 0.5 + 0.5) * viewport_tall
+			var cs = max(scale >> 1, 1)
+			draw_sprite_ext(spr_3d_cursor, 0, c3d_x, c3d_y, cs, cs, 0, c_white, 1)
+		}
 		if region_has_focus(_region)
 		{
 			gpu_push_state()
@@ -1243,6 +1073,8 @@ with add_region("3d Viewport", new Region(0, 0))
 	
 	end)
 }
+
+#region 2d regions
 
 with add_region("2d Viewport (XY)", new Region(1, 1))
 {
@@ -1534,6 +1366,8 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 
 #endregion
 
+#endregion
+
 #region trace stuff
 trace_boxes = ds_list_create()
 trace_x0 = 0
@@ -1585,17 +1419,30 @@ function draw_3d_cursor ()
 	gpu_push_state()
 	gpu_set_zfunc(cmpfunc_always)
 	draw_set_color(c_white)
-	gpu_set_blendmode_ext(bm_inv_dest_color, bm_inv_src_alpha)
-	draw_primitive_begin(pr_linelist)
-	var r = cursor_3d_display_radius
 	
-	draw_vertex_3d(cursor_3d_x-r, cursor_3d_y, cursor_3d_z)
-	draw_vertex_3d(cursor_3d_x+r, cursor_3d_y, cursor_3d_z)
-	draw_vertex_3d(cursor_3d_x, cursor_3d_y-r, cursor_3d_z)
-	draw_vertex_3d(cursor_3d_x, cursor_3d_y+r, cursor_3d_z)
-	draw_vertex_3d(cursor_3d_x, cursor_3d_y, cursor_3d_z-r)
-	draw_vertex_3d(cursor_3d_x, cursor_3d_y, cursor_3d_z+r)
-	draw_primitive_end()
+	var m = matrix_multiply(matrix_get(matrix_view), matrix_get(matrix_projection))
+	
+	var p = matrix_transform_vertex(m, cursor_3d_x, cursor_3d_y, cursor_3d_z, 1)
+	
+	cursor_3d_should_draw = p[2] > 0
+	
+	if cursor_3d_should_draw
+	{
+		var iv = 1/p[2]
+		cursor_3d_draw_x = p[0] *iv
+		cursor_3d_draw_y = p[1] * iv
+	}
+	//gpu_set_blendmode_ext(bm_inv_dest_color, bm_inv_src_alpha)
+	//draw_primitive_begin(pr_linelist)
+	//var r = cursor_3d_display_radius
+	
+	//draw_vertex_3d(cursor_3d_x-r, cursor_3d_y, cursor_3d_z)
+	//draw_vertex_3d(cursor_3d_x+r, cursor_3d_y, cursor_3d_z)
+	//draw_vertex_3d(cursor_3d_x, cursor_3d_y-r, cursor_3d_z)
+	//draw_vertex_3d(cursor_3d_x, cursor_3d_y+r, cursor_3d_z)
+	//draw_vertex_3d(cursor_3d_x, cursor_3d_y, cursor_3d_z-r)
+	//draw_vertex_3d(cursor_3d_x, cursor_3d_y, cursor_3d_z+r)
+	//draw_primitive_end()
 	draw_set_color(c_white)
 	gpu_pop_state()
 }
@@ -1603,6 +1450,9 @@ function draw_3d_cursor ()
 cursor_3d_x = 0
 cursor_3d_y = 0
 cursor_3d_z = 0
+cursor_3d_should_draw = false
+cursor_3d_draw_x = 0
+cursor_3d_draw_y = 0
 cursor_3d_display_radius = 0.5
 
 #endregion
