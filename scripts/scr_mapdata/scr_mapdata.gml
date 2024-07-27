@@ -17,7 +17,7 @@ function Block () constructor begin
 	}
 end
 
-global.AIR   = new Block()
+global.AIR = new Block()
 global.AIR.render_shapes = []
 global.AIR.collision_shapes = []
 global.AIR.replacable = true
@@ -27,7 +27,7 @@ global.SOLID.render_shapes = [{x0:0, y0:0, z0:0, x1:1, y1:1, z1:1}]
 global.SOLID.collision_shapes = global.SOLID.render_shapes
 global.SOLID.colour = c_ltgrey
 
-global.OUT_OF_BOUNDS   = new Block()
+global.OUT_OF_BOUNDS = new Block()
 global.OUT_OF_BOUNDS.render_shapes = []
 global.OUT_OF_BOUNDS.collision_shapes = global.SOLID.render_shapes
 global.OUT_OF_BOUNDS.colour = c_dkgrey

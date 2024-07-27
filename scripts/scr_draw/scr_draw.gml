@@ -1,4 +1,66 @@
 
+function create_bkd_octohedron ()
+{
+	var vb = vertex_create_buffer()
+	vertex_format_begin()
+	vertex_format_add_position_3d()
+	var fmt = vertex_format_end()
+	
+	vertex_begin(vb, fmt)
+	vertex_position_3d(vb, 0, 0, 1)
+	vertex_position_3d(vb, 1, 0, 0)
+	vertex_position_3d(vb, 0, 1, 0)
+	
+	vertex_position_3d(vb, 0, 0, 1)
+	vertex_position_3d(vb, 0, 1, 0)
+	vertex_position_3d(vb, -1, 0, 0)
+	
+	vertex_position_3d(vb, 0, 0, 1)
+	vertex_position_3d(vb, 0, -1, 0)
+	vertex_position_3d(vb, 1, 0, 0)
+
+	vertex_position_3d(vb, 0, 0, 1)
+	vertex_position_3d(vb, -1, 0, 0)
+	vertex_position_3d(vb, 0, -1, 0)
+
+	vertex_position_3d(vb, 0, 0, -1)
+	vertex_position_3d(vb, 1, 0, 0)
+	vertex_position_3d(vb, 0, 1, 0)
+	
+	vertex_position_3d(vb, 0, 0, -1)
+	vertex_position_3d(vb, 0, 1, 0)
+	vertex_position_3d(vb, -1, 0, 0)
+	
+	vertex_position_3d(vb, 0, 0, -1)
+	vertex_position_3d(vb, 0, -1, 0)
+	vertex_position_3d(vb, 1, 0, 0)
+
+	vertex_position_3d(vb, 0, 0, -1)
+	vertex_position_3d(vb, -1, 0, 0)
+	vertex_position_3d(vb, 0, -1, 0)
+	
+	vertex_end(vb)
+	
+	vertex_freeze(vb)
+	
+	static __BKD_V = function (_vb, _fmt) constructor begin
+		vb = _vb
+		format = _fmt
+		
+		static submit = function (_tex)
+		{
+			vertex_submit(vb, pr_trianglelist, _tex)
+		}
+		
+		static free = function ()
+		{
+			vertex_delete_buffer(vb)
+			vertex_format_delete(format)
+		}
+	end
+	
+	return new __BKD_V(vb, fmt)
+}
 
 function draw_vertex_3d (_x, _y, _z)
 {
