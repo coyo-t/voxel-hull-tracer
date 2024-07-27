@@ -62,9 +62,6 @@ function BlockRegistry () constructor begin
 					break
 				}
 			}
-			
-	
-			
 		}
 		gc_collect()
 	}
@@ -231,6 +228,32 @@ global.BLOCKS = {
 		collision_shapes = render_shapes
 		sprite = spr_glass
 		colour_2d = c_aqua
+	}),
+	
+	CARPET: blocks_register("carpet", new Block(), function () {
+		var texel = 1/16
+		render_shapes = [
+			rect_create(0, 0, 0, 1, 1, texel)
+		]
+		collision_shapes = render_shapes
+		sprite = spr_carpet
+		opaque = false
+	}),
+	
+	RAMP: blocks_register("super_ramp", new Block(), function () {
+		var texel = 1/16
+		var outs = array_create(16)
+		for (var i = 0; i < 16; i++)
+		{
+			var i0 = i*texel
+			var i1 = (i+1)*texel
+			outs[i] = rect_create(0, i0, i0, 1, 1, i1)
+		}
+		render_shapes = outs
+		collision_shapes = outs
+		//sprite = spr_grass_top
+		sprite = spr_direction_debug
+		opaque = false
 	}),
 }
 

@@ -49,3 +49,14 @@ function rect_expand_corners_to (_self, _to)
 	_self.z1 = max(_self.z1, _to.z1)
 	return _self
 }
+
+function rect_offset (_self, _x, _y, _z)
+{
+	_self.x0 += _x
+	_self.y0 += _y
+	_self.z0 += _z
+	_self.x1 += _x
+	_self.y1 += _y
+	_self.z1 += _z
+	return _self
+}

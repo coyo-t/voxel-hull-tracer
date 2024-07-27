@@ -5,18 +5,19 @@ font_console = font_add_sprite(spr_kfont2, 1, false, 0)
 
 __NULL_REGION = new Region(0,0)
 
-cam = new Camera()
-
-
-view_roto_matrix = [
-	1, 0, 0, 0,
-	0, 0, 1, 0,
-	0, 1, 0, 0,
-	0, 0, 0, 1,
-]
-
 
 #region world
+
+palette = new Palette(
+	global.BLOCKS.DIRT,
+	global.BLOCKS.SOLID,
+	global.BLOCKS.PRECARIOUS,
+	global.BLOCKS.ROSE,
+	global.BLOCKS.COBBLESTONE_STAIRS,
+	global.BLOCKS.GLASS,
+	global.BLOCKS.CARPET,
+	global.BLOCKS.RAMP,
+)
 
 map = new MapData(16, 16, 8)
 
@@ -27,14 +28,10 @@ map_renderer = new MapRenderer(map)
 
 #endregion
 
-palette = new Palette(
-	global.BLOCKS.DIRT,
-	global.BLOCKS.SOLID,
-	global.BLOCKS.PRECARIOUS,
-	global.BLOCKS.ROSE,
-	global.BLOCKS.COBBLESTONE_STAIRS,
-	global.BLOCKS.GLASS,
-)
+
+#region view
+
+cam = new Camera()
 
 viewport_surf = -1 
 viewport_x = 0
@@ -159,6 +156,9 @@ mouse = begin
 	
 	
 end
+
+#endregion
+
 
 #region region things
 
@@ -318,110 +318,10 @@ function draw_2d_bkd (_region)
 #endregion
 
 
-function draw_axis_bauble (_xs=1, _ys=1, _zs=1)
-{
-	draw_primitive_begin(pr_linelist)
-	draw_set_color(c_yellow)
-	draw_vertex_3d(0, 0, 0)
-	draw_vertex_3d(_xs, 0, 0)
-	draw_set_color(c_red)
-	draw_vertex_3d(0, 0, 0)
-	draw_vertex_3d(0, _ys, 0)
-	draw_set_color(c_aqua)
-	draw_vertex_3d(0, 0, 0)
-	draw_vertex_3d(0, 0, _zs)
-	draw_primitive_end()
-}
-
-function draw_cameray_things ()
-{
-	draw_set_color(c_yellow)
-	
-	var cx = cam.x
-	var cy = cam.y
-	var cz = cam.z
-	var c = cam
-	draw_primitive_begin(pr_linelist)
-	draw_set_color(c_yellow)
-	draw_vertex_3d(cx, cy, cz)
-	draw_vertex_3d(cx+c.forward_x, cy+c.forward_y, cz+c.forward_z)
-	draw_set_color(c_red)
-	draw_vertex_3d(cx, cy, cz)
-	draw_vertex_3d(cx+c.right_x, cy+c.right_y, cz+c.right_z)
-	draw_set_color(c_aqua)
-	draw_vertex_3d(cx, cy, cz)
-	draw_vertex_3d(cx+c.up_x, cy+c.up_y, cz+c.up_z)
-	draw_primitive_end()
-	
-	draw_set_color(c_black)
-	matrix_stack_push(matrix_build(cx, cy, cz, 0,0,0, 1,1,1))
-	matrix_stack_push(c.look_matrix)
-	matrix_push(matrix_world, matrix_stack_top_clear())
-	draw_camera_bauble()
-	matrix_pop(matrix_world)
-	draw_set_color(c_white)
-
-}
-
-function draw_camera_bauble ()
-{
-	var cw = room_width/room_height
-	var ch = 1
-	var cl = 1
-		
-	var x0 = -cw*0.5
-	var z0 = -ch*0.5
-	var x1 = +cw*0.5
-	var z1 = +ch*0.5
-		
-	draw_primitive_begin(pr_linelist)
-	draw_vertex_3d(0, 0, 0)
-	draw_vertex_3d(x0, cl, z0)
-
-	draw_vertex_3d(0, 0, 0)
-	draw_vertex_3d(x1, cl, z0)
-
-	draw_vertex_3d(0, 0, 0)
-	draw_vertex_3d(x1, cl, z1)
-
-	draw_vertex_3d(0, 0, 0)
-	draw_vertex_3d(x0, cl, z1)
-
-	draw_vertex_3d(x0, cl, z0)
-	draw_vertex_3d(x1, cl, z0)
-		
-	draw_vertex_3d(x1, cl, z0)
-	draw_vertex_3d(x1, cl, z1)
-		
-	draw_vertex_3d(x1, cl, z1)
-	draw_vertex_3d(x0, cl, z1)
-		
-	draw_vertex_3d(x0, cl, z1)
-	draw_vertex_3d(x0, cl, z0)
-
-	draw_primitive_end()
-	
-	var tb = 0.2
-	draw_primitive_begin(pr_trianglelist)
-	draw_vertex_3d(x0+tb, cl, z1+tb)
-	draw_vertex_3d(x1-tb, cl, z1+tb)
-	draw_vertex_3d((x0+x1)*0.5, cl, z1+tb+(z1-z0)*0.5)
-	
-	draw_vertex_3d(x1-tb, cl, z1+tb)
-	draw_vertex_3d(x0+tb, cl, z1+tb)
-	draw_vertex_3d((x0+x1)*0.5, cl, z1+tb+(z1-z0)*0.5)
-	draw_primitive_end()
-}
+#region regions themselves
 
 
 var BASE_ZOOM_2D = 20
-
-votv_box_x0 = 0
-votv_box_y0 = 0
-votv_box_x1 = 0
-votv_box_y1 = 0
-
-#region regions themselves
 
 with add_region("3d Viewport", new Region(0, 0))
 {
@@ -451,6 +351,12 @@ with add_region("3d Viewport", new Region(0, 0))
 					
 					switch sss[0]
 					{
+						case "pin":
+							trace_pinned = true
+							break
+						case "unpin":
+							trace_pinned = false
+							break
 						case "show_votv":
 							view3d_show_votv_cursor = array_length(sss) > 1 and sss[1] == "1"
 							break
@@ -626,95 +532,86 @@ with add_region("3d Viewport", new Region(0, 0))
 		
 		
 		var reach = 10//5
-		trace_x0 = c.x
-		trace_y0 = c.y
-		trace_z0 = c.z
 		
-		if region_has_focus(_region) and _region.action == "NONE"
+		if not trace_pinned
 		{
-			var tx1 = (_region.xmouse / viewport_wide) * +2 - 1
-			var ty1 = 1
-			var tz1 = (_region.ymouse / viewport_tall) * -2 + 1
-			
-			tx1 *= 1
-			tz1 *= room_height/room_width
-			
-			var mag = 1 / sqrt(power(tx1, 2) + ty1 + power(tz1, 2))
-			tx1 *= mag
-			ty1 *= mag
-			tz1 *= mag
+			trace_x0 = c.x
+			trace_y0 = c.y
+			trace_z0 = c.z
 		
-			var tr = matrix_transform_vertex(c.look_matrix, tx1, ty1, tz1, 0)
+			if region_has_focus(_region) and _region.action == "NONE"
+			{
+				var tx1 = (_region.xmouse / viewport_wide) * +2 - 1
+				var ty1 = 1
+				var tz1 = (_region.ymouse / viewport_tall) * -2 + 1
+			
+				tx1 *= 1
+				tz1 *= room_height/room_width
+			
+				var mag = 1 / sqrt(power(tx1, 2) + ty1 + power(tz1, 2))
+				tx1 *= mag
+				ty1 *= mag
+				tz1 *= mag
 		
-			trace_x1 = c.x+tr[0]*reach
-			trace_y1 = c.y+tr[1]*reach
-			trace_z1 = c.z+tr[2]*reach
+				var tr = matrix_transform_vertex(c.look_matrix, tx1, ty1, tz1, 0)
+		
+				trace_x1 = c.x+tr[0]*reach
+				trace_y1 = c.y+tr[1]*reach
+				trace_z1 = c.z+tr[2]*reach
+			}
+			else
+			{
+				trace_x1 = c.x+c.forward_x*reach
+				trace_y1 = c.y+c.forward_y*reach
+				trace_z1 = c.z+c.forward_z*reach
+			}
 		}
-		else
-		{
-			trace_x1 = c.x+c.forward_x*reach
-			trace_y1 = c.y+c.forward_y*reach
-			trace_z1 = c.z+c.forward_z*reach
-		}
+		
+		trace_update_hull()
 		
 		ds_list_clear(trace_boxes)
+		ds_list_clear(trace_down_boxes)
+		ds_list_clear(trace_down_boxes_overlap)
+		trace_continue_count = -1
+		trace_nearest = infinity
 		trace_context.setup_endpoints(trace_x0, trace_y0, trace_z0, trace_x1, trace_y1, trace_z1)
-		trace_hit = map.trace_line(
+		//trace_hit = map.trace_line(
+		//	trace_x0,
+		//	trace_y0,
+		//	trace_z0,
+		//	trace_x1,
+		//	trace_y1,
+		//	trace_z1,
+		//	method(self, trace_predicate_normal)
+		//)
+		trace_hit = false
+		map.trace_line_with_downwards(
 			trace_x0,
 			trace_y0,
 			trace_z0,
 			trace_x1,
 			trace_y1,
 			trace_z1,
-			method(self, function (_x, _y, _z) {
-				ds_list_add(trace_boxes, vec_create(_x, _y, _z))
-				
-				var shapes = map.get(_x, _y, _z).collision_shapes
-				var did = false
-				var nearest = infinity
-				
-				for (var i = array_length(shapes); --i >= 0;)
-				{
-					var shape = shapes[i]
-					
-					var x0 = shape.x0 + _x
-					var y0 = shape.y0 + _y
-					var z0 = shape.z0 + _z
-					var x1 = shape.x1 + _x
-					var y1 = shape.y1 + _y
-					var z1 = shape.z1 + _z
-					
-					if trace_context.test(x0, y0, z0, x1, y1, z1)
-					{
-						if trace_context.near_time < nearest
-						{
-							nearest = trace_context.near_time
-							rect_set_corners(trace_hit_hull, x0, y0, z0, x1, y1, z1)
-							did = true
-							
-							trace_hit_x = _x
-							trace_hit_y = _y
-							trace_hit_z = _z
-							trace_normal_x = trace_context.normal_x
-							trace_normal_y = trace_context.normal_y
-							trace_normal_z = trace_context.normal_z
-							trace_point_x = trace_context.hit_x
-							trace_point_y = trace_context.hit_y
-							trace_point_z = trace_context.hit_z
-							
-							
-							trace_hit_time = nearest
-						}
-					}
-				}
-				
-				//trace_hit |= did
-				return did
-			})
+			method(self, trace_predicate_down)
 		)
-		//trace_normal_x = global.__HIT_NORMAL[0]
-		//trace_normal_y = global.__HIT_NORMAL[1]
-		//trace_normal_z = global.__HIT_NORMAL[2]
+		
+		
+		var jsz = ds_list_size(trace_boxes)
+		for (var i = 0; i < ds_list_size(trace_down_boxes); i++)
+		{
+			var subj = trace_down_boxes[| i]
+			var did = false
+			for (var j = jsz; --j>=0;)
+			{
+				var vs = trace_boxes[| j]
+				if vs.x == subj.x and vs.y == subj.y and vs.z == subj.z
+				{
+					did = true
+					break
+				}
+			}
+			ds_list_add(trace_down_boxes_overlap, did)
+		}
 		
 		if region_has_focus(_region) and trace_hit
 		{
@@ -833,6 +730,36 @@ with add_region("3d Viewport", new Region(0, 0))
 
 		var votv_ovrride = trace_hit and _region.action <> "TYPING" and keyboard_check(ord("Q")) and region_has_focus(_region)
 
+		if trace_pinned
+		{
+			draw_primitive_begin(pr_linelist)
+			draw_set_color(c_yellow)
+			var asz0 = 0.001
+			var asz1 = 1-asz0
+			for (var j = ds_list_size(trace_boxes); --j >= 0;)
+			{
+				var box = trace_boxes[| j]
+				corners_linelist(box.x+asz0, box.y+asz0, box.z+asz0, box.x+asz1, box.y+asz1, box.z+asz1)
+			}
+			draw_primitive_end()
+
+			draw_primitive_begin(pr_linelist)
+			draw_set_color(c_fuchsia)
+			var bsz0 = 0.1
+			var bsz1 = 1-bsz0
+			for (var j = ds_list_size(trace_down_boxes); --j >= 0;)
+			{
+				var box = trace_down_boxes[| j]
+				draw_set_color(trace_down_boxes_overlap[| j] ? c_red : c_aqua)
+				corners_linelist(box.x+bsz0, box.y+bsz0, box.z+bsz0, box.x+bsz1, box.y+bsz1, box.z+bsz1)
+			}
+			draw_primitive_end()
+				
+			draw_set_color(c_white)
+				
+		}
+
+		draw_trace_hull()
 
 		if trace_hit
 		{
@@ -1199,7 +1126,9 @@ with add_region("2d Viewport (XY)", new Region(1, 1))
 		draw_clear_depth(1)
 		
 		map_renderer.draw()
-	
+		
+		draw_trace_hull()
+		
 		draw_cameray_things()
 		draw_trace_stuff()
 		draw_3d_cursor()
@@ -1318,7 +1247,7 @@ with add_region("2d Viewport (XZ)", new Region(1, 0))
 		map_renderer.draw()
 	
 		draw_cameray_things()
-	
+	draw_trace_hull()
 		draw_trace_stuff()
 		draw_3d_cursor()
 	
@@ -1402,7 +1331,7 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 		draw_cameray_things()
 	
 		draw_trace_stuff()
-	
+	draw_trace_hull()
 		draw_3d_cursor()
 	
 		draw_set_color(c_white)
@@ -1434,11 +1363,17 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 
 #endregion
 
+
 #region trace stuff
 
 trace_context = new RayRectContext()
 
 trace_boxes = ds_list_create()
+trace_down_boxes = ds_list_create()
+trace_down_boxes_overlap = ds_list_create()
+trace_continue_count = -1
+trace_pinned = false
+trace_nearest = infinity
 trace_x0 = 0
 trace_y0 = 0
 trace_z0 = 0
@@ -1457,6 +1392,146 @@ trace_point_x = 0
 trace_point_y = 0
 trace_point_z = 0
 trace_hit_hull = rect_create()
+
+var p_radius = (0.6) * 0.5
+var p_height = 1.8
+
+trace_source_hull = rect_create(-p_radius, -p_radius, 0, +p_radius, +p_radius, p_height)
+trace_hull = rect_create()
+trace_hull_x = 0
+trace_hull_y = 0
+trace_hull_z = 0
+
+trace_predicate_normal = method(self, function (_x, _y, _z) {
+	ds_list_add(trace_boxes, vec_create(_x, _y, _z))
+				
+	var shapes = map.get(_x, _y, _z).collision_shapes
+	var did = false
+	var nearest = infinity
+				
+	for (var i = array_length(shapes); --i >= 0;)
+	{
+		var shape = shapes[i]
+					
+		var x0 = shape.x0 + _x
+		var y0 = shape.y0 + _y
+		var z0 = shape.z0 + _z
+		var x1 = shape.x1 + _x
+		var y1 = shape.y1 + _y
+		var z1 = shape.z1 + _z
+					
+		if trace_context.test(x0, y0, z0, x1, y1, z1)
+		{
+			if trace_context.near_time < nearest
+			{
+				nearest = trace_context.near_time
+				rect_set_corners(trace_hit_hull, x0, y0, z0, x1, y1, z1)
+				did = true
+							
+				trace_hit_x = _x
+				trace_hit_y = _y
+				trace_hit_z = _z
+				trace_normal_x = trace_context.normal_x
+				trace_normal_y = trace_context.normal_y
+				trace_normal_z = trace_context.normal_z
+				trace_point_x = trace_context.hit_x
+				trace_point_y = trace_context.hit_y
+				trace_point_z = trace_context.hit_z
+				
+				trace_hit_time = nearest
+			}
+		}
+	}
+	return did
+})
+
+trace_predicate_down = method(self, function (_x, _y, _z, _downsearch) {
+	
+	ds_list_add(_downsearch ? trace_down_boxes : trace_boxes, vec_create(_x, _y, _z))
+	
+	var shapes = map.get(_x, _y, _z).collision_shapes
+	
+	var cc = array_length(shapes)
+	if cc <= 0
+	{
+		if trace_continue_count > -1
+		{
+			--trace_continue_count
+			if trace_continue_count == -1
+			{
+				return TRACE_COLLIDED
+			}
+		}
+		
+		return TRACE_FALSE
+	}
+	
+	
+	var did = false
+				
+	for (var i = array_length(shapes); --i >= 0;)
+	{
+		var shape = shapes[i]
+		var taller = shape.z1 > 1
+		var x0 = shape.x0 + _x
+		var y0 = shape.y0 + _y
+		var z0 = shape.z0 + _z
+		var x1 = shape.x1 + _x
+		var y1 = shape.y1 + _y
+		var z1 = shape.z1 + _z
+					
+		if trace_context.test(x0, y0, z0, x1, y1, z1)
+		{
+			var tt = trace_context.near_time
+			if tt < trace_nearest
+			{
+				if taller and trace_continue_count == -1
+				{
+					trace_continue_count = 1
+				}
+				trace_nearest = tt
+				rect_set_corners(trace_hit_hull, x0, y0, z0, x1, y1, z1)
+				did = true
+							
+				trace_hit_x = _x
+				trace_hit_y = _y
+				trace_hit_z = _z
+				trace_normal_x = trace_context.normal_x
+				trace_normal_y = trace_context.normal_y
+				trace_normal_z = trace_context.normal_z
+				trace_point_x = trace_context.hit_x
+				trace_point_y = trace_context.hit_y
+				trace_point_z = trace_context.hit_z
+				
+				trace_hit_time = tt
+			}
+		}
+	}
+	
+	trace_hit |= did
+	
+	if did and trace_continue_count > 0
+	{
+		trace_continue_count -= 1
+		return TRACE_CEL_CONTAINED_COLLIDERS
+	}
+	
+	if trace_continue_count == 0
+	{
+		return TRACE_CEL_CONTAINED_COLLIDERS | TRACE_COLLIDED
+	}
+	
+	return TRACE_CEL_CONTAINED_COLLIDERS | (TRACE_COLLIDED * did)
+})
+
+function trace_update_hull ()
+{
+	trace_hull_x = cursor_3d_x
+	trace_hull_y = cursor_3d_y
+	trace_hull_z = cursor_3d_z
+	rect_set_from(trace_hull, trace_source_hull)
+	rect_offset(trace_hull, trace_hull_x, trace_hull_y, trace_hull_z)
+}
 
 function draw_trace_stuff ()
 {
@@ -1477,6 +1552,24 @@ function draw_trace_stuff ()
 	}
 	draw_primitive_end()
 	
+	draw_primitive_begin(pr_linelist)
+	var bsz0 = 0.1
+	var bsz1 = 1-bsz0
+	for (var i = 0; i < ds_list_size(trace_down_boxes); i++)
+	{
+		var box = trace_down_boxes[| i]
+		draw_set_color(trace_down_boxes_overlap[| i] ? c_red : c_aqua)
+		var x0 = box.x+bsz0
+		var y0 = box.y+bsz0
+		var z0 = box.z+bsz0
+		var x1 = box.x+bsz1
+		var y1 = box.y+bsz1
+		var z1 = box.z+bsz1
+		
+		corners_linelist(x0, y0, z0, x1, y1, z1)
+	}
+	draw_primitive_end()
+	
 	draw_set_color(c_white)
 	draw_primitive_begin(pr_linelist)
 	draw_vertex_3d(trace_x0, trace_y0, trace_z0)
@@ -1484,7 +1577,15 @@ function draw_trace_stuff ()
 	draw_primitive_end()
 }
 
+function draw_trace_hull ()
+{
+	draw_primitive_begin(pr_linelist)
+	corners_linelist(trace_hull.x0, trace_hull.y0, trace_hull.z0, trace_hull.x1, trace_hull.y1, trace_hull.z1)
+	draw_primitive_end()
+}
+
 #endregion
+
 
 #region 3d cursor
 
@@ -1506,17 +1607,7 @@ function draw_3d_cursor ()
 		cursor_3d_draw_x = p[0] *iv
 		cursor_3d_draw_y = p[1] * iv
 	}
-	//gpu_set_blendmode_ext(bm_inv_dest_color, bm_inv_src_alpha)
-	//draw_primitive_begin(pr_linelist)
-	//var r = cursor_3d_display_radius
-	
-	//draw_vertex_3d(cursor_3d_x-r, cursor_3d_y, cursor_3d_z)
-	//draw_vertex_3d(cursor_3d_x+r, cursor_3d_y, cursor_3d_z)
-	//draw_vertex_3d(cursor_3d_x, cursor_3d_y-r, cursor_3d_z)
-	//draw_vertex_3d(cursor_3d_x, cursor_3d_y+r, cursor_3d_z)
-	//draw_vertex_3d(cursor_3d_x, cursor_3d_y, cursor_3d_z-r)
-	//draw_vertex_3d(cursor_3d_x, cursor_3d_y, cursor_3d_z+r)
-	//draw_primitive_end()
+
 	draw_set_color(c_white)
 	gpu_pop_state()
 }
@@ -1528,5 +1619,102 @@ cursor_3d_should_draw = false
 cursor_3d_draw_x = 0
 cursor_3d_draw_y = 0
 cursor_3d_display_radius = 0.5
+
+
+
+#endregion
+
+
+#region misc
+
+votv_box_x0 = 0
+votv_box_y0 = 0
+votv_box_x1 = 0
+votv_box_y1 = 0
+
+
+function draw_axis_bauble (_xs=1, _ys=1, _zs=1)
+{
+	draw_primitive_begin(pr_linelist)
+	draw_set_color(c_yellow)
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(_xs, 0, 0)
+	draw_set_color(c_red)
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(0, _ys, 0)
+	draw_set_color(c_aqua)
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(0, 0, _zs)
+	draw_primitive_end()
+}
+
+function draw_cameray_things ()
+{
+	draw_set_color(c_yellow)
+	
+	var c = cam
+	var cx = c.x
+	var cy = c.y
+	var cz = c.z
+	
+	draw_set_color(c_black)
+	matrix_stack_push(matrix_build(cx, cy, cz, 0,0,0, 1,1,1))
+	matrix_stack_push(c.look_matrix)
+	matrix_push(matrix_world, matrix_stack_top_clear())
+	draw_camera_bauble()
+	matrix_pop(matrix_world)
+	draw_set_color(c_white)
+
+}
+
+function draw_camera_bauble ()
+{
+	var cw = room_width/room_height
+	var ch = 1
+	var cl = 1
+		
+	var x0 = -cw*0.5
+	var z0 = -ch*0.5
+	var x1 = +cw*0.5
+	var z1 = +ch*0.5
+		
+	draw_primitive_begin(pr_linelist)
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(x0, cl, z0)
+
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(x1, cl, z0)
+
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(x1, cl, z1)
+
+	draw_vertex_3d(0, 0, 0)
+	draw_vertex_3d(x0, cl, z1)
+
+	draw_vertex_3d(x0, cl, z0)
+	draw_vertex_3d(x1, cl, z0)
+		
+	draw_vertex_3d(x1, cl, z0)
+	draw_vertex_3d(x1, cl, z1)
+		
+	draw_vertex_3d(x1, cl, z1)
+	draw_vertex_3d(x0, cl, z1)
+		
+	draw_vertex_3d(x0, cl, z1)
+	draw_vertex_3d(x0, cl, z0)
+
+	draw_primitive_end()
+	
+	var tb = 0.2
+	draw_primitive_begin(pr_trianglelist)
+	draw_vertex_3d(x0+tb, cl, z1+tb)
+	draw_vertex_3d(x1-tb, cl, z1+tb)
+	draw_vertex_3d((x0+x1)*0.5, cl, z1+tb+(z1-z0)*0.5)
+	
+	draw_vertex_3d(x1-tb, cl, z1+tb)
+	draw_vertex_3d(x0+tb, cl, z1+tb)
+	draw_vertex_3d((x0+x1)*0.5, cl, z1+tb+(z1-z0)*0.5)
+	draw_primitive_end()
+}
 
 #endregion

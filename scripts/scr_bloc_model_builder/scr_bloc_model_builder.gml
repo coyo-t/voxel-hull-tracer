@@ -199,17 +199,17 @@ function MapModelBuilder () constructor begin
 			var zz = _z+sh.z1
 		
 			var u0 = sh.x0 * uw + ux
-			var v0 = sh.y0 * uh + uy
+			var v0 = (-sh.y0+1) * uh + uy
 			var u1 = sh.x1 * uw + ux
-			var v1 = sh.y1 * uh + uy
+			var v1 = (-sh.y1+1) * uh + uy
 		
-			__addv(vv, x0, y1, zz, u0, v0)
-			__addv(vv, x1, y1, zz, u1, v0)
-			__addv(vv, x0, y0, zz, u0, v1)
+			__addv(vv, x0, y1, zz, u0, v1)
+			__addv(vv, x1, y1, zz, u1, v1)
+			__addv(vv, x0, y0, zz, u0, v0)
 
-			__addv(vv, x1, y1, zz, u1, v0)
-			__addv(vv, x1, y0, zz, u1, v1)
-			__addv(vv, x0, y0, zz, u0, v1)
+			__addv(vv, x1, y1, zz, u1, v1)
+			__addv(vv, x1, y0, zz, u1, v0)
+			__addv(vv, x0, y0, zz, u0, v0)
 		}
 	}
 	
@@ -287,17 +287,17 @@ function MapModelBuilder () constructor begin
 			var yy = _y+ sh.y0
 		
 			var u0 = sh.x0 * uw + ux
-			var v0 = sh.z0 * uh + uy
+			var v0 = (-sh.z0+1) * uh + uy
 			var u1 = sh.x1 * uw + ux
-			var v1 = sh.z1 * uh + uy
+			var v1 = (-sh.z1+1) * uh + uy
 		
-			__addv(vv, x0, yy, z1, u0, v0)
-			__addv(vv, x1, yy, z1, u1, v0)
-			__addv(vv, x0, yy, z0, u0, v1)
+			__addv(vv, x0, yy, z1, u0, v1)
+			__addv(vv, x1, yy, z1, u1, v1)
+			__addv(vv, x0, yy, z0, u0, v0)
 		
-			__addv(vv, x1, yy, z1, u1, v0)
-			__addv(vv, x1, yy, z0, u1, v1)
-			__addv(vv, x0, yy, z0, u0, v1)
+			__addv(vv, x1, yy, z1, u1, v1)
+			__addv(vv, x1, yy, z0, u1, v0)
+			__addv(vv, x0, yy, z0, u0, v0)
 		}
 	}
 	
@@ -367,14 +367,14 @@ function MapModelBuilder () constructor begin
 			}
 			
 			var y0 = _y+sh.y0
-			var y1 = _y + sh.y1
+			var y1 = _y+sh.y1
 			var z0 = _z+sh.z0
-			var z1 = _z + sh.z1
-			var xx = _x + sh.x1
+			var z1 = _z+sh.z1
+			var xx = _x+sh.x1
 			var u0 = sh.y0 * uw + ux
-			var v0 = sh.z0 * uh + uy
+			var v0 = (-sh.z0+1) * uh + uy
 			var u1 = sh.y1 * uw + ux
-			var v1 = sh.z1 * uh + uy
+			var v1 = (-sh.z1+1) * uh + uy
 		
 			__addv(vv, xx, y0, z1, u0, v0)
 			__addv(vv, xx, y1, z1, u1, v0)
@@ -391,8 +391,6 @@ function MapModelBuilder () constructor begin
 		set_cur_colour(_type.colour)
 		set_cur_shade(0.8)
 		var vv = get_tex_uvs(_type.sprite)
-		
-
 		
 		var vv = get_tex_uvs(_type.sprite)
 		var ux = cur_uvs[0]
@@ -415,18 +413,18 @@ function MapModelBuilder () constructor begin
 			var z0 = _z+sh.z0
 			var z1 = _z +sh.z1
 			var xx = _x + sh.x0
-			var u0 = sh.y0 * uw + ux
+			var u0 = (-sh.y0+1) * uw + ux
 			var v0 = sh.z0 * uh + uy
-			var u1 = sh.y1 * uw + ux
+			var u1 = (-sh.y1+1) * uw + ux
 			var v1 = sh.z1 * uh + uy
 		
-			__addv(vv, xx, y1, z1, u0, v0)
-			__addv(vv, xx, y0, z1, u1, v0)
-			__addv(vv, xx, y0, z0, u1, v1)
+			__addv(vv, xx, y1, z1, u1, v0)
+			__addv(vv, xx, y0, z1, u0, v0)
+			__addv(vv, xx, y0, z0, u0, v1)
 		
-			__addv(vv, xx, y1, z1, u0, v0)
-			__addv(vv, xx, y0, z0, u1, v1)
-			__addv(vv, xx, y1, z0, u0, v1)
+			__addv(vv, xx, y1, z1, u1, v0)
+			__addv(vv, xx, y0, z0, u0, v1)
+			__addv(vv, xx, y1, z0, u1, v1)
 		}
 		
 	}
