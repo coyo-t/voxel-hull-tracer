@@ -1,4 +1,7 @@
 
+instance_create_depth(0,0,0, obj_init)
+
+
 
 font_console = font_add_sprite(spr_kfont2, 1, false, 0)
 
@@ -9,14 +12,14 @@ __NULL_REGION = new Region(0,0)
 #region world
 
 palette = new Palette(
-	global.BLOCKS.DIRT,
-	global.BLOCKS.SOLID,
-	global.BLOCKS.PRECARIOUS,
-	global.BLOCKS.ROSE,
-	global.BLOCKS.COBBLESTONE_STAIRS,
-	global.BLOCKS.GLASS,
-	global.BLOCKS.CARPET,
-	global.BLOCKS.RAMP,
+	"dirt",
+	"solid",
+	"precarious",
+	"rose",
+	"cobblestone_stairs",
+	"glass",
+	"carpet",
+	"super_ramp",
 )
 
 map = new MapData(16, 16, 8)
@@ -1331,7 +1334,7 @@ with add_region("2d Viewport (YZ)", new Region(0, 1))
 		draw_cameray_things()
 	
 		draw_trace_stuff()
-	draw_trace_hull()
+		draw_trace_hull()
 		draw_3d_cursor()
 	
 		draw_set_color(c_white)

@@ -18,6 +18,7 @@
   ],
   "IncludedFiles":[
     {"$GMIncludedFile":"","%Name":"ApolloHelp.html","CopyToMask":0,"filePath":"datafiles","name":"ApolloHelp.html","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
+    {"$GMIncludedFile":"","%Name":"b.lua","CopyToMask":-1,"filePath":"datafiles/blocks","name":"b.lua","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
     {"$GMIncludedFile":"","%Name":"blocs.lua","CopyToMask":-1,"filePath":"datafiles/scripts","name":"blocs.lua","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
   ],
   "isEcma":false,
@@ -28,8 +29,8 @@
   "name":"tree dree trace",
   "resources":[
     {"id":{"name":"Apollo","path":"extensions/Apollo/Apollo.yy",},},
-    {"id":{"name":"Game_1","path":"objects/Game_1/Game_1.yy",},},
     {"id":{"name":"Game","path":"objects/Game/Game.yy",},},
+    {"id":{"name":"obj_init","path":"objects/obj_init/obj_init.yy",},},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
     {"id":{"name":"scr_bloc_model_builder","path":"scripts/scr_bloc_model_builder/scr_bloc_model_builder.yy",},},
     {"id":{"name":"scr_block_palette","path":"scripts/scr_block_palette/scr_block_palette.yy",},},
@@ -54,6 +55,7 @@
     {"id":{"name":"spr_3d_cursor","path":"sprites/spr_3d_cursor/spr_3d_cursor.yy",},},
     {"id":{"name":"spr_bezel2_focus","path":"sprites/spr_bezel2_focus/spr_bezel2_focus.yy",},},
     {"id":{"name":"spr_bezel2_norm","path":"sprites/spr_bezel2_norm/spr_bezel2_norm.yy",},},
+    {"id":{"name":"spr_block_missing","path":"sprites/spr_block_missing/spr_block_missing.yy",},},
     {"id":{"name":"spr_carpet","path":"sprites/spr_carpet/spr_carpet.yy",},},
     {"id":{"name":"spr_cobblestone","path":"sprites/spr_cobblestone/spr_cobblestone.yy",},},
     {"id":{"name":"spr_crosshair","path":"sprites/spr_crosshair/spr_crosshair.yy",},},

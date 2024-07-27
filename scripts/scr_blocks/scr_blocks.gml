@@ -24,6 +24,9 @@ function BlockRegistry () constructor begin
 	
 	static finalize = function ()
 	{
+		//lua_add_file(L, "scripts/blocs.lua")
+		
+		
 		var bc = array_length(_all)
 		var empty_array = []
 		_full_blocs = array_create(bc, false)
@@ -107,7 +110,7 @@ function Block () constructor begin
 	
 	replacable = false
 	
-	sprite = spr_terrain__2_
+	sprite = spr_block_missing
 	
 	opaque = true
 	
@@ -141,121 +144,4 @@ function GlassBlock () : Block() constructor begin
 	}
 end
 
-global.BLOCKS = {
-	AIR: blocks_register("air", new Block(), function () {
-		render_shapes = []
-		collision_shapes = []
-		replacable = true
-		opaque = false
-	}),
-	OUT_OF_BOUNDS: blocks_register("out_of_bounds", new Block(), function () {
-		collision_shapes = [rect_create(0, 0, 0, 1, 1, 1)]
-		render_shapes = collision_shapes
-		colour_2d = c_dkgrey
-		sprite = spr_dark_hull
-	}),
-	
-	OUT_OF_BOUNDS_AIR: blocks_register("out_of_bounds_air", new Block(), function () {
-		render_shapes = []
-		collision_shapes = []
-		replacable = true
-		opaque = false
-	}),
-	
-	SOLID: blocks_register("solid", new Block(), function () {
-		render_shapes = [rect_create(0, 0, 0, 1, 1, 1)]
-		collision_shapes = render_shapes
-		colour_2d = c_ltgrey
-		sprite = spr_stone
-	}),
-	
-	DIRT: blocks_register("dirt", new Block(), function () {
-		render_shapes = [rect_create(0, 0, 0, 1, 1, 1)]
-		collision_shapes = render_shapes
-		colour_2d = c_orange
-		sprite = spr_dirt
-	}),
-	
-	PRECARIOUS: blocks_register("precarious", new Block(), function () {
-		var texel = 1/16
-		var r = texel*2
-		var sh = rect_create(
-			0.5-r,
-			0.5-r,
-			0,
-			0.5+r,
-			0.5+r,
-			1
-		)
-		var sh2 = rect_create_from(sh)
-		sh2.z1 = 1.5
-		
-		render_shapes = [sh]
-		collision_shapes = [sh2]
-		colour_2d = merge_colour(c_black, c_orange, 0.5)
-		sprite = spr_oak_planks
-		opaque = false
-	}),
-	
-	ROSE: blocks_register("rose", new Block(), function () {
-		var texel = 1/16
-		var cs = rect_create(texel*5, texel*5, 0, texel*11, texel*11, texel*8)
-		var rs = [
-			rect_create(0, 0.5, 0, 1, 0.5, 1),
-			rect_create(0.5, 0, 0, 0.5, 1, 1),
-		]
-		render_shapes = rs
-		collision_shapes = [cs]
-		sprite = spr_rose
-		colour_2d = c_red
-		opaque = false
-	}),
-	
-	COBBLESTONE_STAIRS: blocks_register("cobblestone_stairs", new Block(), function () {
-		var sh = [
-			rect_create(0, 0, 0, 1, 1, 0.5),
-			rect_create(0, 0, 0.5, 1, 0.5, 1)
-		]
-		render_shapes = sh
-		collision_shapes = sh
-		sprite = spr_cobblestone
-		colour_2d = c_dkgrey
-		opaque = false
-	}),
-	
-	GLASS: blocks_register("glass", new GlassBlock(), function () {
-		render_shapes = [rect_create(0,0,0,1,1,1)]
-		collision_shapes = render_shapes
-		sprite = spr_glass
-		colour_2d = c_aqua
-	}),
-	
-	CARPET: blocks_register("carpet", new Block(), function () {
-		var texel = 1/16
-		render_shapes = [
-			rect_create(0, 0, 0, 1, 1, texel)
-		]
-		collision_shapes = render_shapes
-		sprite = spr_carpet
-		opaque = false
-	}),
-	
-	RAMP: blocks_register("super_ramp", new Block(), function () {
-		var texel = 1/16
-		var outs = array_create(16)
-		for (var i = 0; i < 16; i++)
-		{
-			var i0 = i*texel
-			var i1 = (i+1)*texel
-			outs[i] = rect_create(0, i0, i0, 1, 1, i1)
-		}
-		render_shapes = outs
-		collision_shapes = outs
-		//sprite = spr_grass_top
-		sprite = spr_direction_debug
-		opaque = false
-	}),
-}
 
-
-global.BLOCK_REGISTRY.finalize()

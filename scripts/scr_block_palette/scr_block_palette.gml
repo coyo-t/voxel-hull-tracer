@@ -6,7 +6,15 @@ function Palette () constructor begin
 	
 	for (var i = argument_count; --i >= 0;)
 	{
-		blocks[i] = argument[i]
+		var a = argument[i]
+		if is_string(a)
+		{
+			blocks[i] = blocks_get_by_name(a)
+		}
+		else
+		{
+			blocks[i] = argument[i]
+		}
 	}
 	
 	static offset_index = function (_delta)

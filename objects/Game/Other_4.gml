@@ -3,7 +3,7 @@
 
 recalculate_regions()
 
-var fill = global.BLOCKS.SOLID
+var fill = blocks_get_by_name("solid")
 for (var yy = 0; yy < map.ysize; yy++)
 {
 	for (var xx = 0; xx < map.xsize; xx++)
